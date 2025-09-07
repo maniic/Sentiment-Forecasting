@@ -1,0 +1,49 @@
+# --- Virtual environments ---
+.venv/
+venv/
+ENV/
+env/
+
+# --- Python cache/bytecode ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Build / packaging ---
+build/
+dist/
+.eggs/
+*.egg-info/
+
+# --- Testing / coverage ---
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Logs ---
+*.log
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+*.code-workspace
+
+# --- OS files ---
+.DS_Store
+Thumbs.db
+
+# --- Environment files (secrets) ---
+.env
+.env.*
+*.env
+
+# --- Optional: ignore large local artifacts (uncomment if desired) ---
+# data/
+# models/
+# output/
