@@ -1,0 +1,8 @@
+feedparser
+pandas
+numpy
+yfinance
+transformers
+torch
+scikit-learn
+matplotlib
