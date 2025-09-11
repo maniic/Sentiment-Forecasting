@@ -57,3 +57,19 @@ def backtest_equal_weight(df_signals: pd.DataFrame, cost_bps: float = 3.0) -> tu
 
     metrics = {"sharpe": float(sharpe), "max_dd": max_dd, "trades": trades}
     return perf, metrics
+
+def todays_signals(df_with_p: pd.DataFrame, threshold: float = 0.60, require_mom_agree: bool = True) -> pd.DataFrame:
+    """"Return long candidates on the most recent date in df_with_p
+    Columns expected: date, p_up, ret_5, sent_mean, n, ticker"""
+    if df_with_p is None or df_with_p.empty:
+        return pd.DataFrame(columns=["ticker", "p_up", "ret_5", "sent_mean", "n", "date"])
+    
+    last_date = df_with_p["date"].max()
+    day = df_with_p[df_with_p["date"] == last_date].copy()
+    
+    mask = day["p_up"] > float(threshold)
+    if require_mom_agree:
+        mask &= day["ret_5"] > 0.0
+        
+    picks = day[mask].sort_values("p_up", ascending=False)
+    return picks[["ticker", "p_up", "ret_5", "sent_mean", "n", "date"]].reset_index(drop=True)
