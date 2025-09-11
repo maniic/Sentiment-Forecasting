@@ -72,12 +72,12 @@ def fetch_headlines_google(ticker: str, days: int) -> pd.DataFrame:
     
     if MAX_HEADLINES_PER_TICKER:
     # keep most recent N, then put back in chronological order
-    df = (
-        df.sort_values("ts", ascending=False)
-          .head(MAX_HEADLINES_PER_TICKER)
-          .sort_values("ts")
-          .reset_index(drop=True)
-    )
+        df = (
+            df.sort_values("ts", ascending=False)
+            .head(MAX_HEADLINES_PER_TICKER)
+            .sort_values("ts")
+            .reset_index(drop=True)
+        )
     
     return df[_COLUMNS]
 
@@ -119,12 +119,12 @@ def fetch_headlines_yfinance(ticker: str, days: int) -> pd.DataFrame:
     df = df.drop_duplicates(subset=["headline"]).sort_values("ts").reset_index(drop=True)
     
     if MAX_HEADLINES_PER_TICKER:
-    df = (
-        df.sort_values("ts", ascending=False)
-          .head(MAX_HEADLINES_PER_TICKER)
-          .sort_values("ts")
-          .reset_index(drop=True)
-    )
+        df = (
+            df.sort_values("ts", ascending=False)
+            .head(MAX_HEADLINES_PER_TICKER)
+            .sort_values("ts")
+            .reset_index(drop=True)
+        )
     
     return df[_COLUMNS]
 
