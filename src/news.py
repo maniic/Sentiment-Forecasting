@@ -8,7 +8,8 @@ import feedparser
 import pandas as pd
 import yfinance as yf
 
-from src.config import NEWS_SOURCE
+from src.config import NEWS_SOURCE, MAX_HEADLINES_PER_TICKER
+
 
 _GOOGLE_NEWS_RSS = (
     "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
@@ -68,6 +69,16 @@ def fetch_headlines_google(ticker: str, days: int) -> pd.DataFrame:
     
     df = pd.DataFrame(rows)
     df = df.drop_duplicates(subset=["headline"]).sort_values("ts").reset_index(drop=True)
+    
+    if MAX_HEADLINES_PER_TICKER:
+    # keep most recent N, then put back in chronological order
+    df = (
+        df.sort_values("ts", ascending=False)
+          .head(MAX_HEADLINES_PER_TICKER)
+          .sort_values("ts")
+          .reset_index(drop=True)
+    )
+    
     return df[_COLUMNS]
 
 # yfinance
@@ -106,6 +117,15 @@ def fetch_headlines_yfinance(ticker: str, days: int) -> pd.DataFrame:
     
     df = pd.DataFrame(rows)
     df = df.drop_duplicates(subset=["headline"]).sort_values("ts").reset_index(drop=True)
+    
+    if MAX_HEADLINES_PER_TICKER:
+    df = (
+        df.sort_values("ts", ascending=False)
+          .head(MAX_HEADLINES_PER_TICKER)
+          .sort_values("ts")
+          .reset_index(drop=True)
+    )
+    
     return df[_COLUMNS]
 
 # public api
