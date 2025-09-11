@@ -20,3 +20,5 @@ PREDICTION_THRESHOLD = 0.60
 ROUND_TRIP_COST_BPS = 3
 
 NEWS_SOURCE = "auto" # 'google' or 'yfinance' or 'auto' (try google, fallback to yfinance)
+
+MAX_HEADLINES_PER_TICKER = 50
