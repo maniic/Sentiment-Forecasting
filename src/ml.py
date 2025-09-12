@@ -19,11 +19,11 @@ class MLReport:
     recall: float
     auc: float
     
-def make_feature_table(df: pd.DataFrame, features: list[str] = None, label_col: str) -> pd.DataFrame:
+def make_feature_table(df: pd.DataFrame, features: list[str] = None, label_col: str = "label") -> pd.DataFrame:
     """Return (x, y, dates), from the joined features DataFrame."""
     feats = features or DEFAULT_FEATURES
     keep = ["date"] + feats + [label_col]
-    tbl = df[keep].dropna().
+    tbl = df[keep].dropna().copy()
     x = tbl[feats].astype(float)    
     y = tbl[label_col].astype(int)
     dates = pd.to_datetime(tbl["date"])
@@ -42,7 +42,10 @@ def fit_logistic(X_train: pd.DataFrame, y_train: pd.Series, calibrate: bool = Tr
     """Standardized Logistic Regression"""
     base =  Pipeline([("scalar", StandardScaler()), ("clf", LogisticRegression(C=C, max_iter=2000, class_weight=class_weight))])
     if calibrate:
-        model = CalibratedClassifierCV(base, method = "sigmoid", cv=3)
+        model = Pipeline([
+            ("scaler", StandardScaler()),
+            ("clf", LogisticRegression(C=0.1, max_iter=2000, class_weight="balanced")),
+        ])    
     else:
         model = base
     model.fit(X_train, y_train)
