@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 import datetime as dt
 from urllib.parse import quote_plus
@@ -9,27 +10,29 @@ import pandas as pd
 import yfinance as yf
 
 from src.config import NEWS_SOURCE, MAX_HEADLINES_PER_TICKER
+from src.utils import limit_and_sort_headlines
 
+logger = logging.getLogger(__name__)
 
 _GOOGLE_NEWS_RSS = (
     "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
 )
 
 # Output schema
-
 _COLUMNS = ["ticker", "ts", "headline", "source", "link"]
 
-# helper functions
 
 def _normalize_title(text: str) -> str:
     """Collapse weird whitespace and trim."""
     return re.sub(r"\s+", " ", (text or "")).strip()
+
 
 def _to_utc_datetime(t) -> dt.datetime | None:
     """Convert a feedparser time-struct to a tz-aware UTC datetime."""
     if t is None:
         return None
     return dt.datetime(*t[:6], tzinfo=dt.timezone.utc)
+
 
 def _empty_df() -> pd.DataFrame:
     return pd.DataFrame(columns=_COLUMNS)
@@ -66,20 +69,15 @@ def fetch_headlines_google(ticker: str, days: int) -> pd.DataFrame:
     
     if not rows:
         return _empty_df()
-    
+
     df = pd.DataFrame(rows)
     df = df.drop_duplicates(subset=["headline"]).sort_values("ts").reset_index(drop=True)
-    
+
     if MAX_HEADLINES_PER_TICKER:
-    # keep most recent N, then put back in chronological order
-        df = (
-            df.sort_values("ts", ascending=False)
-            .head(MAX_HEADLINES_PER_TICKER)
-            .sort_values("ts")
-            .reset_index(drop=True)
-        )
-    
+        df = limit_and_sort_headlines(df, MAX_HEADLINES_PER_TICKER)
+
     return df[_COLUMNS]
+
 
 # yfinance
 
@@ -114,19 +112,15 @@ def fetch_headlines_yfinance(ticker: str, days: int) -> pd.DataFrame:
     
     if not rows:
         return _empty_df()
-    
+
     df = pd.DataFrame(rows)
     df = df.drop_duplicates(subset=["headline"]).sort_values("ts").reset_index(drop=True)
-    
+
     if MAX_HEADLINES_PER_TICKER:
-        df = (
-            df.sort_values("ts", ascending=False)
-            .head(MAX_HEADLINES_PER_TICKER)
-            .sort_values("ts")
-            .reset_index(drop=True)
-        )
-    
+        df = limit_and_sort_headlines(df, MAX_HEADLINES_PER_TICKER)
+
     return df[_COLUMNS]
+
 
 # public api
 
