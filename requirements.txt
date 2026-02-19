@@ -7,3 +7,11 @@ torch
 scikit-learn
 matplotlib
 streamlit
+plotly
+giotto-tda
+xgboost
+lightgbm
+optuna
+joblib
+pytest
+seaborn
