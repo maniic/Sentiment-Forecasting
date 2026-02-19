@@ -49,11 +49,11 @@ def main():
     X = join_sentiment_with_prices(daily, price)
     Xp = add_quick_prob(X)
     Xp.to_csv(outdir / "features_joined.csv", index=False)
-    perf.to_csv(outdir / "equity_curve.csv", index=False)
 
     # 4) Signals + Backtest
     Xs = apply_signals(Xp, threshold=args.threshold, require_mom_agree=args.require_mom)
     perf, metrics = backtest_equal_weight(Xs, cost_bps=args.cost_bps)
+    perf.to_csv(outdir / "equity_curve.csv", index=False)
 
     # 5) Today’s picks
     picks = todays_signals(Xp, threshold=args.threshold, require_mom_agree=args.require_mom)

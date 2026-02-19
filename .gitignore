@@ -43,7 +43,7 @@ Thumbs.db
 .env.*
 *.env
 
-# --- Optional: ignore large local artifacts (uncomment if desired) ---
-# data/
-# models/
-# output/
+# --- Local artifacts (generated) ---
+data/
+models/
+output/
