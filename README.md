@@ -1,14 +1,10 @@
 # Sentiment Forecasting
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-
 A sophisticated stock sentiment forecasting system that combines **FinBERT NLP**, **Topological Data Analysis (TDA)**, and **ML-driven backtesting** to generate trading signals.
 
-## What Makes This Project Unique
+## Overview
 
-This isn't a typical stock prediction project. It combines three cutting-edge techniques:
+This is a stock prediction project that combines three cutting-edge techniques:
 
 ### 1. FinBERT Financial Sentiment Analysis
 - State-of-the-art transformer model fine-tuned on financial text
@@ -74,23 +70,6 @@ This isn't a typical stock prediction project. It combines three cutting-edge te
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-## Quick Start
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/Sentiment-Forecasting.git
-cd Sentiment-Forecasting
-
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
 ### Run the Pipeline
 
 ```bash
@@ -106,40 +85,6 @@ streamlit run app.py
 ```bash
 # Launch Jupyter
 jupyter notebook notebooks/sentiment_forecasting_demo.ipynb
-```
-
-## Project Structure
-
-```
-Sentiment-Forecasting/
-├── app.py                    # Streamlit web application
-├── run_pipeline.py           # CLI pipeline entry point
-├── requirements.txt          # Python dependencies
-├── src/
-│   ├── config.py            # Centralized configuration
-│   ├── schemas.py           # Data contracts and validation
-│   ├── exceptions.py        # Custom exception hierarchy
-│   ├── logging_config.py    # Structured logging setup
-│   ├── utils.py             # Shared utilities
-│   ├── news.py              # News fetching (Google, yfinance)
-│   ├── sentiment.py         # FinBERT sentiment analysis
-│   ├── features.py          # Feature engineering
-│   ├── tda.py               # Topological Data Analysis
-│   ├── ml.py                # ML models and training
-│   ├── backtest.py          # Backtesting engine
-│   ├── visuals.py           # Visualization utilities
-│   └── ui/                  # Streamlit UI components
-│       ├── components.py    # Reusable UI widgets
-│       └── state.py         # Session state management
-├── notebooks/
-│   └── sentiment_forecasting_demo.ipynb  # Interactive demo
-├── tests/                   # Unit tests
-│   ├── conftest.py
-│   ├── test_news.py
-│   ├── test_features.py
-│   ├── test_ml.py
-│   └── test_schemas.py
-└── output/                  # Generated outputs (gitignored)
 ```
 
 ## Features
@@ -186,29 +131,6 @@ from src.config import (
 )
 ```
 
-## Running Tests
-
-```bash
-# Run all tests
-pytest tests/
-
-# Run with coverage
-pytest tests/ --cov=src --cov-report=html
-```
-
-## Technical Highlights
-
-| Feature | Implementation |
-|---------|---------------|
-| **NLP Model** | FinBERT (yiyanghkust/finbert-tone) via Hugging Face |
-| **TDA Library** | giotto-tda for persistent homology |
-| **ML Framework** | scikit-learn, XGBoost |
-| **Web Framework** | Streamlit |
-| **Data Sources** | yfinance, Google News RSS |
-| **Type Safety** | Frozen dataclasses, type hints throughout |
-| **Thread Safety** | Double-checked locking for model singletons |
-| **Error Handling** | Custom exception hierarchy with logging |
-
 ## Dependencies
 
 Core:
@@ -219,15 +141,3 @@ Core:
 - `yfinance`, `feedparser` - Data fetching
 - `streamlit` - Web interface
 - `matplotlib`, `plotly` - Visualization
-
-## Disclaimer
-
-This project is for **educational purposes only**. It is not intended as investment advice. Always do your own research and consult with financial professionals before making investment decisions.
-
-## License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-Built with FinBERT + TDA + scikit-learn
