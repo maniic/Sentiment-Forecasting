@@ -27,7 +27,18 @@ from sklearn.metrics import (
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
+from src.config import MODELS_DIR, OUTPUT_DIR
 from src.schemas import Columns
+
+# Trusted directories that model artifacts may be loaded from.
+# joblib.load deserializes pickle data, so any attacker-controlled
+# path can lead to arbitrary code execution (CWE-502). We restrict
+# load_model to a small, project-controlled allow-list to contain
+# that risk.
+_TRUSTED_MODEL_DIRS: tuple[Path, ...] = (
+    Path(MODELS_DIR).resolve(),
+    Path(OUTPUT_DIR).resolve(),
+)
 
 logger = logging.getLogger(__name__)
 
@@ -349,6 +360,32 @@ def _best_threshold(
     return float(best_t)
 
 
+def _resolve_trusted_model_path(
+    path: str | Path,
+    allowed_dirs: tuple[Path, ...] = _TRUSTED_MODEL_DIRS,
+) -> Path:
+    """
+    Resolve ``path`` and ensure it lives under one of ``allowed_dirs``.
+
+    Raises
+    ------
+    ValueError
+        If the resolved path escapes every allowed directory.
+    """
+    resolved = Path(path).expanduser().resolve()
+    for root in allowed_dirs:
+        try:
+            resolved.relative_to(root)
+            return resolved
+        except ValueError:
+            continue
+    allowed_str = ", ".join(str(d) for d in allowed_dirs)
+    raise ValueError(
+        f"Refusing to load model from untrusted path: {resolved!s}. "
+        f"Allowed roots: {allowed_str}"
+    )
+
+
 def save_model(model, path: str | Path) -> None:
     """Save model to disk using joblib."""
     Path(path).parent.mkdir(parents=True, exist_ok=True)
@@ -356,8 +393,17 @@ def save_model(model, path: str | Path) -> None:
 
 
 def load_model(path: str | Path):
-    """Load model from disk using joblib."""
-    return joblib.load(path)
+    """
+    Load a model from disk using joblib.
+
+    ``joblib.load`` deserializes pickle data, which can execute arbitrary
+    code. To mitigate CWE-502 (Deserialization of Untrusted Data), the
+    provided path must resolve inside one of the project's trusted
+    directories (see ``_TRUSTED_MODEL_DIRS``). Paths that escape via
+    symlinks, ``..`` traversal, or absolute locations are rejected.
+    """
+    safe_path = _resolve_trusted_model_path(path)
+    return joblib.load(safe_path)
 
 
 def train_model_from_frame(

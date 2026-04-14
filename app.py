@@ -19,11 +19,19 @@ from src.config import (
     ROUND_TRIP_COST_BPS,
     NEWS_SOURCE,
     LOCAL_TZ,
+    MODELS_DIR,
+    OUTPUT_DIR,
 )
 from src.news import fetch_all_headlines
 from src.sentiment import score_headlines, aggregate_daily_sentiment
 from src.features import compute_price_features, join_sentiment_with_prices
-from src.ml import add_quick_prob, load_model, add_ml_prob, DEFAULT_FEATURES
+from src.ml import (
+    add_quick_prob,
+    load_model,
+    add_ml_prob,
+    DEFAULT_FEATURES,
+    _resolve_trusted_model_path,
+)
 from src.backtest import apply_signals, backtest_equal_weight, todays_signals
 from src.ui.components import (
     display_freshness_panel,
@@ -73,6 +81,23 @@ with st.sidebar:
         st.write("**Tickers:** " + ", ".join(default_tickers))
         tickers = default_tickers
 
+    # Files in the trusted model/output directories are the only artifacts
+    # the UI is allowed to deserialize. We enumerate them here so the user
+    # cannot specify an arbitrary filesystem path (see CWE-502 / path
+    # injection hardening in src/ml.load_model).
+    _TRUSTED_DIRS = (Path(MODELS_DIR), Path(OUTPUT_DIR))
+
+    def _list_trusted_files(patterns: tuple[str, ...]) -> list[str]:
+        found: list[str] = []
+        for d in _TRUSTED_DIRS:
+            if not d.exists():
+                continue
+            for pattern in patterns:
+                for f in sorted(d.glob(pattern)):
+                    if f.is_file():
+                        found.append(str(f))
+        return found
+
     if level == "Beginner":
         news_days = st.slider(
             "Headlines from last N days",
@@ -93,8 +118,8 @@ with st.sidebar:
         cost_bps = float(ROUND_TRIP_COST_BPS)
         news_source = NEWS_SOURCE
         use_ml = False
-        model_path = "output/logreg_sentiment.joblib"
-        model_meta = "output/logreg_sentiment.meta.json"
+        model_path = None
+        model_meta = None
     else:
         news_days = st.slider("Headlines from last N days", 1, 14, DEFAULT_LOOKBACK_DAYS)
         price_lookback = st.slider("Price lookback (days)", 60, 365, 180)
@@ -121,11 +146,31 @@ with st.sidebar:
             value=False,
             help="Train a model first using the Jupyter notebook or CLI",
         )
-        model_path = st.text_input("Model file", value="output/logreg_sentiment.joblib")
-        model_meta = st.text_input(
+        # Restrict model/meta choices to files already present in the
+        # trusted directories. This prevents untrusted pickle payloads
+        # and arbitrary file reads via a free-form path input.
+        model_choices = _list_trusted_files(("*.joblib", "*.pkl"))
+        meta_choices = _list_trusted_files(("*.meta.json", "*.json"))
+        model_path = st.selectbox(
+            "Model file",
+            options=model_choices,
+            index=0 if model_choices else None,
+            help=(
+                "Only files inside the project's models/ and output/ "
+                "directories are offered, to prevent loading untrusted "
+                "pickle artifacts."
+            ),
+        ) if model_choices else None
+        model_meta = st.selectbox(
             "Model meta (features/threshold)",
-            value="output/logreg_sentiment.meta.json",
-        )
+            options=meta_choices,
+            index=0 if meta_choices else None,
+        ) if meta_choices else None
+        if use_ml and not model_choices:
+            st.warning(
+                "No trained models were found in models/ or output/. "
+                "Train one with the CLI or notebook first."
+            )
 
     st.markdown("---")
     refresh = st.button(
@@ -143,16 +188,31 @@ def _fresh_now_utc() -> pd.Timestamp:
 
 def _load_ml_or_quick(X: pd.DataFrame, threshold_fallback: float):
     """Return (Xp, threshold_used, mode_str)."""
-    if use_ml and Path(model_path).exists():
+    if use_ml and model_path:
+        try:
+            safe_model = _resolve_trusted_model_path(model_path)
+        except ValueError as e:
+            st.error(f"Cannot load model: {e}")
+            Xp = add_quick_prob(X)
+            return Xp, threshold_fallback, "Quick Prob (rule-based)"
+
+        if not safe_model.exists():
+            st.warning(f"Model file not found: {safe_model}. Falling back to quick prob.")
+            Xp = add_quick_prob(X)
+            return Xp, threshold_fallback, "Quick Prob (rule-based)"
+
         feats = DEFAULT_FEATURES
         th = threshold_fallback
-        try:
-            meta = json.loads(Path(model_meta).read_text())
-            feats = meta.get("features", feats)
-            th = float(meta.get("threshold", th))
-        except Exception:
-            pass
-        model = load_model(model_path)
+        if model_meta:
+            try:
+                safe_meta = _resolve_trusted_model_path(model_meta)
+                meta = json.loads(safe_meta.read_text())
+                feats = meta.get("features", feats)
+                th = float(meta.get("threshold", th))
+            except (ValueError, OSError, json.JSONDecodeError):
+                # Bad/missing meta is non-fatal: we just fall back to defaults.
+                pass
+        model = load_model(safe_model)
         Xp = add_ml_prob(X, model, feats, out_col="p_up")
         mode = f"ML (Logistic) · features={len(feats)} · threshold={th:.2f}"
         return Xp, th, mode

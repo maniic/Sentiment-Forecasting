@@ -1,15 +1,20 @@
 """Tests for ML module."""
 from __future__ import annotations
 
+from pathlib import Path
+
 import pandas as pd
 import numpy as np
 import pytest
 
+from src.config import MODELS_DIR, OUTPUT_DIR
 from src.ml import (
     select_available_features,
     add_quick_prob,
     blend_probabilities,
     time_split_by_fraction,
+    load_model,
+    _resolve_trusted_model_path,
     MLReport,
     DEFAULT_FEATURES,
 )
@@ -144,3 +149,33 @@ class TestMLReport:
         assert report.precision == 0.7
         assert report.recall == 0.6
         assert report.auc == 0.85
+
+
+class TestLoadModelTrustedPath:
+    """Guard against CWE-502 regressions in load_model."""
+
+    def test_allows_path_inside_models_dir(self, tmp_path, monkeypatch):
+        rel = "model_lr.joblib"
+        resolved = _resolve_trusted_model_path(Path(MODELS_DIR) / rel)
+        assert resolved == (Path(MODELS_DIR).resolve() / rel)
+
+    def test_allows_path_inside_output_dir(self):
+        rel = "logreg_sentiment.joblib"
+        resolved = _resolve_trusted_model_path(Path(OUTPUT_DIR) / rel)
+        assert resolved == (Path(OUTPUT_DIR).resolve() / rel)
+
+    def test_rejects_absolute_outside_trusted_dirs(self):
+        with pytest.raises(ValueError, match="untrusted path"):
+            _resolve_trusted_model_path("/etc/passwd")
+
+    def test_rejects_parent_traversal(self):
+        with pytest.raises(ValueError, match="untrusted path"):
+            _resolve_trusted_model_path("output/../../../tmp/evil.joblib")
+
+    def test_load_model_refuses_untrusted_path(self, tmp_path):
+        # Create a file outside the allowed directories and ensure
+        # load_model refuses rather than deserializing it.
+        evil = tmp_path / "evil.joblib"
+        evil.write_bytes(b"not really a pickle")
+        with pytest.raises(ValueError, match="untrusted path"):
+            load_model(evil)
