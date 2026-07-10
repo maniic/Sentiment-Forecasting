@@ -122,6 +122,34 @@ so color never carries meaning alone.
 - **Zero frontend build step.** No node_modules, no bundler: semantic HTML + design
   tokens + ES modules, with Plotly.js vendored for interactive charts offline.
 
+## Deploying it live
+
+The app is a single FastAPI process serving both the API and the static frontend, so it
+runs on any host that can execute Python — **not** GitHub Pages or Vercel's serverless
+functions, which don't fit a long-lived server with `torch`-sized dependencies.
+
+**Recommended: [Render.com](https://render.com)** — free tier, connect the repo, and it
+reads `render.yaml` automatically (Blueprint deploy). Alternatives that work the same
+way: [Fly.io](https://fly.io), [Railway](https://railway.app), or
+[Hugging Face Spaces](https://huggingface.co/spaces) (Docker SDK) — all read the included
+`Dockerfile`.
+
+The deploy path intentionally **skips FinBERT** (`requirements-deploy.txt`, no
+`torch`/`transformers`): free-tier containers don't reliably have the RAM for it, and the
+app already falls back to its lexicon sentiment engine — see
+[Engineering highlights](#engineering-highlights). Run `requirements.txt` (the full set)
+locally if you want FinBERT and live data sources.
+
+```bash
+# Render — connects render.yaml automatically, or manually:
+#   build: pip install -r requirements-deploy.txt
+#   start: uvicorn server:app --host 0.0.0.0 --port $PORT
+
+# Any Docker host (Fly, HF Spaces, Railway, a VPS):
+docker build -t sentiment-forecasting .
+docker run -p 8000:8000 -e PORT=8000 sentiment-forecasting
+```
+
 ## Other ways to run it
 
 ```bash

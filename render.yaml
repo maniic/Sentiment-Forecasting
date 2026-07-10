@@ -1,0 +1,15 @@
+# Render.com Blueprint — connect this repo at https://dashboard.render.com/blueprints
+# and it reads this file automatically. Free tier: sleeps after inactivity,
+# wakes on the next request in ~30s.
+services:
+  - type: web
+    name: sentiment-forecasting
+    runtime: python
+    plan: free
+    branch: main
+    buildCommand: pip install -r requirements-deploy.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+    healthCheckPath: /api/config
