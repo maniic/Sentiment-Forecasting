@@ -22,10 +22,25 @@ jobs:
       - name: Install dependencies (lightweight set — tests don't need torch)
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          pip install pandas numpy scikit-learn yfinance feedparser streamlit plotly matplotlib joblib xgboost pytest
+          pip install pandas numpy scikit-learn yfinance feedparser fastapi uvicorn httpx matplotlib joblib xgboost pytest
 
       - name: Run test suite
         run: pytest tests/ -v
+
+      - name: Smoke-test the API (offline demo run)
+        run: |
+          python - <<'EOF'
+          from fastapi.testclient import TestClient
+          from server import app
+
+          client = TestClient(app)
+          assert client.get("/api/config").status_code == 200
+          res = client.post("/api/run", json={"mode": "demo", "tickers": ["AAPL", "MSFT"], "engine": "lexicon"})
+          assert res.status_code == 200, res.text
+          data = res.json()
+          assert data["metrics"]["n_days"] > 0 and data["perf"]["equity"]
+          print("API smoke test OK:", data["metrics"])
+          EOF
 
       - name: Smoke-test the offline demo pipeline
         run: |

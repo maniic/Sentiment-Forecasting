@@ -1,0 +1,34 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tabs & chrome — Sentiment Forecasting</title>
+<link rel="stylesheet" href="../tokens.css">
+<style>
+  body { margin: 0; padding: 32px; display: grid; gap: 32px; }
+</style>
+</head>
+<body class="sf-body">
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true">Performance</button>
+    <button class="tab" role="tab" aria-selected="false">Headlines &amp; Sentiment</button>
+    <button class="tab" role="tab" aria-selected="false">Today's Picks</button>
+    <button class="tab" role="tab" aria-selected="false">Topology</button>
+    <button class="tab" role="tab" aria-selected="false">How it works</button>
+  </div>
+
+  <div class="meta-strip">
+    <span><b>Last headline</b> 2026-07-10 13:05 EDT</span>
+    <span><b>As-of</b> 2026-07-09</span>
+    <span><b>Fetched</b> 2026-07-10 09:12 EDT</span>
+    <span><b>Engine</b> Rule blend · Lexicon · Demo data</span>
+  </div>
+
+  <div style="display:grid; gap:10px; max-width:420px">
+    <div class="skeleton" style="height:64px"></div>
+    <div class="skeleton" style="height:12px; width:70%"></div>
+    <div class="skeleton" style="height:12px; width:45%"></div>
+  </div>
+</body>
+</html>

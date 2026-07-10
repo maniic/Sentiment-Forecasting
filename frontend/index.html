@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sentiment Forecasting</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+<link rel="stylesheet" href="/design/tokens.css">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body class="sf-body">
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">📰📈</span>
+    <div>
+      <h1>Sentiment Forecasting</h1>
+      <p>AI reads the headlines · topology reads the market's shape · a model turns both into signals</p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span id="engine-chip" class="chip" hidden></span>
+    <a class="chip chip-link" href="https://github.com/maniic/Sentiment-Forecasting" target="_blank" rel="noopener">GitHub ↗</a>
+  </div>
+</header>
+
+<div class="shell">
+
+  <!-- ============================ Sidebar ============================ -->
+  <aside class="sidebar card">
+    <h2 class="label">Run settings</h2>
+
+    <div class="field">
+      <span class="label">Data source</span>
+      <div class="seg" role="group" aria-label="Data source" id="mode-seg">
+        <button data-mode="demo" aria-pressed="true">🚀 Demo</button>
+        <button data-mode="live" aria-pressed="false">🌐 Live</button>
+      </div>
+      <p class="hint" id="mode-hint">Instant, offline, reproducible synthetic market — the generated
+      headlines genuinely predict next-day moves.</p>
+    </div>
+
+    <label class="field">
+      <span class="label">Ticker preset</span>
+      <select class="select" id="preset"></select>
+    </label>
+
+    <label class="field" id="custom-tickers-field" hidden>
+      <span class="label">Custom tickers (comma-separated)</span>
+      <input class="input" id="custom-tickers" value="SPY, QQQ, AAPL" spellcheck="false">
+    </label>
+
+    <div class="field">
+      <span class="label">Signal threshold — <span class="num accent" id="threshold-val">0.60</span></span>
+      <input class="range" type="range" id="threshold" min="0.45" max="0.75" step="0.01" value="0.60">
+      <p class="hint">Only buy when P(up tomorrow) clears this bar. Higher = fewer, stronger signals.</p>
+    </div>
+
+    <label class="check">
+      <input type="checkbox" id="momentum" checked>
+      Require positive 5-day momentum
+    </label>
+
+    <details class="advanced">
+      <summary class="label">Advanced</summary>
+      <div class="advanced-body">
+        <div class="field">
+          <span class="label">Headlines from last <span class="num accent" id="news-days-val">5</span> days</span>
+          <input class="range" type="range" id="news-days" min="1" max="14" step="1" value="5">
+        </div>
+        <div class="field">
+          <span class="label">Price history — <span class="num accent" id="lookback-val">180</span> days</span>
+          <input class="range" type="range" id="lookback" min="60" max="365" step="5" value="180">
+        </div>
+        <label class="field">
+          <span class="label">Trading cost (bps, round-trip)</span>
+          <input class="input num" type="number" id="cost" value="3" min="0" max="100" step="1">
+        </label>
+        <label class="field">
+          <span class="label">Sentiment engine</span>
+          <select class="select" id="engine">
+            <option value="lexicon">Lexicon — instant, no downloads</option>
+            <option value="auto">Auto — FinBERT if installed</option>
+            <option value="finbert">FinBERT — transformer (~400MB on first use)</option>
+          </select>
+        </label>
+        <label class="field" id="source-field" hidden>
+          <span class="label">News source (live)</span>
+          <select class="select" id="news-source">
+            <option value="auto">Auto</option>
+            <option value="google">Google News RSS</option>
+            <option value="yfinance">Yahoo Finance</option>
+          </select>
+        </label>
+      </div>
+    </details>
+
+    <button class="btn btn-primary" id="run">▶ Run analysis</button>
+    <p class="hint disclaimer">Educational demo — not investment advice.</p>
+  </aside>
+
+  <!-- ============================ Main ============================ -->
+  <main class="main">
+
+    <div id="error-banner" class="error-banner" hidden></div>
+
+    <section class="kpis" id="kpis" aria-live="polite">
+      <div class="card stat"><span class="label">Total return</span><span class="value num skeleton-block" data-kpi="total_return"></span><span class="delta num" data-kpi="delta"></span></div>
+      <div class="card stat"><span class="label">Sharpe ratio</span><span class="value num skeleton-block" data-kpi="sharpe"></span><span class="delta muted">risk-adjusted, annualized</span></div>
+      <div class="card stat"><span class="label">Max drawdown</span><span class="value num skeleton-block" data-kpi="max_dd"></span><span class="delta muted">worst peak-to-trough</span></div>
+      <div class="card stat"><span class="label">Win rate</span><span class="value num skeleton-block" data-kpi="win_rate"></span><span class="delta muted">of invested days</span></div>
+      <div class="card stat"><span class="label">Days in market</span><span class="value num skeleton-block" data-kpi="days"></span><span class="delta muted" data-kpi="threshold-note"></span></div>
+    </section>
+
+    <nav class="tabs" role="tablist" id="tabs">
+      <button class="tab" role="tab" aria-selected="true"  data-panel="panel-perf">Performance</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="panel-sent">Headlines &amp; Sentiment</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="panel-picks">Today's Picks</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="panel-topo">Topology</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="panel-how">How it works</button>
+    </nav>
+
+    <!-- Performance -->
+    <section class="panel" id="panel-perf" role="tabpanel">
+      <div class="chart-card">
+        <h2 class="chart-title">Growth of $1 — strategy vs. buy &amp; hold</h2>
+        <p class="chart-sub">Each day the strategy holds an equal-weight basket of tickers whose signal cleared
+        the threshold (or cash if none did), net of costs. The dashed line just holds everything.</p>
+        <div id="chart-equity" class="plot plot-lg"></div>
+      </div>
+      <div class="chart-card">
+        <h2 class="chart-title">Drawdown from peak</h2>
+        <p class="chart-sub">How painful the dips were along the way</p>
+        <div id="chart-drawdown" class="plot plot-sm"></div>
+      </div>
+    </section>
+
+    <!-- Sentiment -->
+    <section class="panel" id="panel-sent" role="tabpanel" hidden>
+      <div class="grid-2">
+        <div class="chart-card">
+          <h2 class="chart-title">Average headline sentiment by ticker</h2>
+          <p class="chart-sub">Blue = net positive news · red = net negative</p>
+          <div id="chart-sent" class="plot plot-md"></div>
+        </div>
+        <div class="chart-card">
+          <h2 class="chart-title">Does today's news predict tomorrow's move?</h2>
+          <p class="chart-sub">Each dot is one ticker-day with headlines; the core hypothesis in one picture</p>
+          <div id="chart-scatter" class="plot plot-md"></div>
+        </div>
+      </div>
+      <div class="card table-card">
+        <h2 class="chart-title">Scored headlines</h2>
+        <div class="table-scroll">
+          <table class="table" id="headlines-table">
+            <thead><tr><th>Ticker</th><th>When</th><th>Headline</th><th>Sentiment</th><th class="num-cell">Score</th><th>Source</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Picks -->
+    <section class="panel" id="panel-picks" role="tabpanel" hidden>
+      <div class="card table-card">
+        <h2 class="chart-title">🎯 Today's picks</h2>
+        <p class="chart-sub" id="picks-sub"></p>
+        <div class="table-scroll">
+          <table class="table" id="picks-table">
+            <thead><tr><th>Ticker</th><th style="width:240px">P(up tomorrow)</th><th class="num-cell">5-day momentum</th><th class="num-cell">News sentiment</th><th class="num-cell"># headlines</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="picks-empty" class="empty" hidden>
+          No signals today with the current settings — the model isn't confident enough about any
+          ticker. Try lowering the threshold or disabling the momentum filter.
+        </div>
+      </div>
+    </section>
+
+    <!-- Topology -->
+    <section class="panel" id="panel-topo" role="tabpanel" hidden>
+      <div class="card prose">
+        <h2 class="chart-title">What am I looking at?</h2>
+        <p>Instead of reading a price chart left-to-right, <b>topological data analysis (TDA)</b> turns the
+        last few weeks of returns into a <i>cloud of points</i> and studies its <b>shape</b>. Each day's
+        triple <i>(today, tomorrow, day-after)</i> becomes one point in 3D — the cloud below.
+        <b>Persistent homology</b> counts the cloud's structure: clusters (H0) and loops (H1), and how long
+        they persist as you zoom out. Calm, trending markets make tight simple clouds; turbulent or cyclical
+        markets make stretched clouds with loops. Those numbers feed the model as early-warning
+        "market shape" features that plain returns can't capture.</p>
+        <label class="field" style="max-width:280px">
+          <span class="label">Ticker to explore</span>
+          <select class="select" id="topo-ticker"></select>
+        </label>
+      </div>
+      <div class="chart-card">
+        <h2 class="chart-title" id="topo-3d-title">Daily returns as a 3D point cloud</h2>
+        <p class="chart-sub">Each dot is one day; color runs light → dark through time. Drag to rotate, scroll to zoom.</p>
+        <div id="chart-embed" class="plot plot-xl"></div>
+      </div>
+      <div class="chart-card">
+        <h2 class="chart-title" id="topo-ts-title">Topological signal over time</h2>
+        <p class="chart-sub">Spikes = the return cloud's shape is changing (regime shifts, turbulence)</p>
+        <div id="chart-topo" class="plot plot-sm"></div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="panel" id="panel-how" role="tabpanel" hidden>
+      <div class="card prose">
+        <h2 class="chart-title">The idea</h2>
+        <p>Markets move on news, but news is text and models need numbers. This app turns the day's
+        financial headlines into a trading signal in five steps:</p>
+        <ol class="steps">
+          <li><b>📰 Collect</b> — pull the last few days of headlines per ticker <span>Google News RSS / Yahoo Finance</span></li>
+          <li><b>🧠 Read</b> — a finance-tuned AI scores each headline positive / negative / neutral <span>FinBERT, with a lexicon fallback</span></li>
+          <li><b>📐 Shape</b> — recent returns become a 3D point cloud; its shape is measured <span>topological data analysis</span></li>
+          <li><b>🎲 Predict</b> — sentiment + momentum + shape → P(up tomorrow) per ticker <span>rule blend / logistic / XGBoost</span></li>
+          <li><b>📊 Test</b> — simulate trading that signal historically, minus costs, vs. buy &amp; hold <span>backtester</span></li>
+        </ol>
+        <p><b>Demo mode</b> generates a self-consistent synthetic market (headlines <i>and</i> prices,
+        offline, seeded) so you can explore instantly. <b>Live mode</b> pulls real headlines and prices.
+        No look-ahead bias: signals formed today are only ever evaluated on tomorrow's returns.</p>
+        <p class="muted">⚠️ Educational project. Backtests on short windows are noisy; past performance
+        guarantees nothing.</p>
+      </div>
+    </section>
+
+    <footer class="meta-strip" id="meta-strip" hidden></footer>
+  </main>
+</div>
+
+<script src="/vendor/plotly.min.js"></script>
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>

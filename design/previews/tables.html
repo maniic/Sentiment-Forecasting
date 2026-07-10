@@ -1,0 +1,49 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tables — Sentiment Forecasting</title>
+<link rel="stylesheet" href="../tokens.css">
+<style>
+  body { margin: 0; padding: 32px; display: grid; gap: 28px; }
+  h2 { font-size: 1rem; color: var(--ink); margin: 0 0 12px; }
+</style>
+</head>
+<body class="sf-body">
+  <div class="card" style="padding: 8px 0 0">
+    <h2 style="padding: 8px 16px 4px">Today's picks</h2>
+    <table class="table">
+      <thead><tr><th>Ticker</th><th style="width:220px">P(up tomorrow)</th><th class="num-cell">5-day momentum</th><th class="num-cell">News sentiment</th><th class="num-cell"># headlines</th></tr></thead>
+      <tbody>
+        <tr>
+          <td style="color:var(--ink);font-weight:650">GOOGL</td>
+          <td><div class="prob"><div class="bar"><span style="width:61%"></span></div><span class="pct">0.61</span></div></td>
+          <td class="num-cell" style="color:var(--good)">+4.96%</td>
+          <td class="num-cell">−0.05</td>
+          <td class="num-cell">2</td>
+        </tr>
+        <tr>
+          <td style="color:var(--ink);font-weight:650">NVDA</td>
+          <td><div class="prob"><div class="bar"><span style="width:58%"></span></div><span class="pct">0.58</span></div></td>
+          <td class="num-cell" style="color:var(--good)">+2.10%</td>
+          <td class="num-cell">+0.31</td>
+          <td class="num-cell">4</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card" style="padding: 8px 0 0">
+    <h2 style="padding: 8px 16px 4px">Scored headlines</h2>
+    <table class="table">
+      <thead><tr><th>Ticker</th><th>When</th><th>Headline</th><th>Sentiment</th><th class="num-cell">Score</th></tr></thead>
+      <tbody>
+        <tr><td style="color:var(--ink);font-weight:650">AAPL</td><td class="num">Jul 10 14:05</td><td style="color:var(--ink)">Apple beats quarterly earnings expectations as revenue surges</td><td><span class="badge badge-pos">▲ Positive</span></td><td class="num-cell">+0.93</td></tr>
+        <tr><td style="color:var(--ink);font-weight:650">MSFT</td><td class="num">Jul 10 12:41</td><td style="color:var(--ink)">Analysts downgrade Microsoft on weak demand fears</td><td><span class="badge badge-neg">▼ Negative</span></td><td class="num-cell">−0.88</td></tr>
+        <tr><td style="color:var(--ink);font-weight:650">NVDA</td><td class="num">Jul 10 11:02</td><td style="color:var(--ink)">Nvidia schedules annual shareholder meeting</td><td><span class="badge badge-neu">• Neutral</span></td><td class="num-cell">0.00</td></tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>
