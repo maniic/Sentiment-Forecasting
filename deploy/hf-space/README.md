@@ -1,13 +1,19 @@
 ---
 title: Sentiment Forecasting
 emoji: 📰
+short_description: FinBERT + topology → trading signals, backtested
 colorFrom: blue
 colorTo: indigo
 sdk: gradio
 sdk_version: 5.49.1
+python_version: "3.11"
 app_file: app.py
-pinned: false
+pinned: true
 license: mit
+models:
+  - yiyanghkust/finbert-tone
+preload_from_hub:
+  - yiyanghkust/finbert-tone
 ---
 
 # 📰📈 Sentiment Forecasting
