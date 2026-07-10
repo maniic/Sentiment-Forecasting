@@ -1,0 +1,39 @@
+# Full-stack image for Hugging Face Spaces (Docker SDK, free CPU tier).
+# Unlike the lite ./Dockerfile, this installs torch + transformers and
+# pre-downloads FinBERT at build time, so the deployed demo can showcase
+# the real transformer sentiment engine (HF's free tier has 16GB RAM —
+# plenty; Render's free 512MB is why the lite image skips it).
+#
+# To use: copy over Dockerfile in the Space repo (see DEPLOY.md).
+FROM python:3.11-slim
+
+# HF Docker Spaces run the container as uid 1000 — set up a matching user
+# so the model cache and app files are writable.
+RUN useradd -m -u 1000 user
+USER user
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH
+WORKDIR /home/user/app
+
+COPY --chown=user requirements-deploy.txt .
+RUN pip install --no-cache-dir --user -r requirements-deploy.txt && \
+    pip install --no-cache-dir --user torch --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir --user transformers
+
+# Bake FinBERT into the image so the first visitor doesn't wait for a
+# ~440MB download. Cached under ~/.cache/huggingface.
+RUN python -c "from transformers import AutoTokenizer, AutoModelForSequenceClassification; \
+AutoTokenizer.from_pretrained('yiyanghkust/finbert-tone'); \
+AutoModelForSequenceClassification.from_pretrained('yiyanghkust/finbert-tone')"
+
+COPY --chown=user server.py .
+COPY --chown=user src/ ./src/
+COPY --chown=user frontend/ ./frontend/
+COPY --chown=user design/ ./design/
+
+# HF Docker Spaces route traffic to the port declared as app_port in the
+# Space README front matter (7860 by convention).
+ENV PORT=7860
+EXPOSE 7860
+
+CMD ["sh", "-c", "uvicorn server:app --host 0.0.0.0 --port ${PORT}"]

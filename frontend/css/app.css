@@ -124,3 +124,16 @@ body { padding-bottom: var(--sp-7); }
 
 /* Run button busy state */
 #run.busy { pointer-events: none; opacity: .6; }
+
+/* Backend banner detail + inline code */
+.banner-detail { color: var(--ink-2); font-size: var(--fs-small); }
+.error-banner code {
+  font-family: var(--font-mono); font-size: 0.8em;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 4px; padding: 1px 5px;
+}
+
+/* Model quality panel */
+.mq-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--sp-3); margin-top: var(--sp-3); }
+@media (max-width: 900px) { .mq-grid { grid-template-columns: repeat(2, 1fr); } }
+.mq-grid .value { font-size: 1.4rem; }

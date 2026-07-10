@@ -31,7 +31,7 @@ from src.features import (
     join_sentiment_with_prices,
     load_close_prices,
 )
-from src.ml import add_quick_prob
+from src.ml import add_ml_prob, add_quick_prob, train_model_from_frame
 from src.news import fetch_all_headlines
 from src.sentiment import (
     active_engine,
@@ -57,6 +57,15 @@ class RunRequest(BaseModel):
     cost_bps: float = Field(default=float(ROUND_TRIP_COST_BPS), ge=0, le=100)
     engine: Literal["auto", "finbert", "lexicon"] = "lexicon"
     news_source: Literal["auto", "google", "yfinance"] = "auto"
+    model: Literal["rule", "logistic", "xgboost", "ensemble"] = "rule"
+
+
+_MODEL_LABELS = {
+    "rule": "Rule blend",
+    "logistic": "Logistic regression",
+    "xgboost": "XGBoost",
+    "ensemble": "Ensemble (LR + GB + XGB)",
+}
 
 
 def _clean(value):
@@ -102,6 +111,7 @@ def get_config():
             "cost_bps": float(ROUND_TRIP_COST_BPS),
         },
         "finbert_available": finbert_available(),
+        "models": [{"id": k, "label": v} for k, v in _MODEL_LABELS.items()],
     }
 
 
@@ -141,8 +151,47 @@ def run_analysis(req: RunRequest):
             "Try demo mode.",
         )
 
-    Xp = add_quick_prob(X)
+    # Probability engine: transparent rule blend, or an ML model trained on
+    # the spot with a strictly chronological 80/20 split. For trained models
+    # both the quality metrics AND the backtest use only the held-out final
+    # 20% — the model never gets graded on days it trained on.
+    model_report = None
+    bt_frame_filter = None  # (dates > cut) mask applied before backtesting
+    if req.model == "rule":
+        Xp = add_quick_prob(X)
+    else:
+        try:
+            model, report, suggested_th, feats = train_model_from_frame(
+                X, model_type=req.model, test_frac=0.2
+            )
+        except ValueError as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Not enough data to train the {_MODEL_LABELS[req.model]} model "
+                f"({e}). Try more tickers or a longer price history.",
+            )
+        Xp = add_ml_prob(X, model, feats, out_col="p_up")
+
+        # Same chronological cut train_model_from_frame used: last 20% of
+        # unique dates is the out-of-sample window.
+        dates_sorted = np.sort(pd.to_datetime(Xp["date"]).unique())
+        cut_date = dates_sorted[max(0, int(len(dates_sorted) * 0.8) - 1)]
+        bt_frame_filter = pd.to_datetime(Xp["date"]) > cut_date
+
+        model_report = {
+            "auc": _clean(report.auc),
+            "accuracy": _clean(report.accuracy),
+            "precision": _clean(report.precision),
+            "recall": _clean(report.recall),
+            "suggested_threshold": _clean(suggested_th),
+            "features": feats,
+            "n_rows": int(len(X)),
+            "test_start": pd.Timestamp(cut_date).isoformat()[:10],
+        }
+
     Xs = apply_signals(Xp, threshold=req.threshold, require_mom_agree=req.require_momentum)
+    if bt_frame_filter is not None:
+        Xs = Xs[bt_frame_filter]
     perf, metrics = backtest_equal_weight(Xs, cost_bps=req.cost_bps)
     picks = todays_signals(Xp, threshold=req.threshold, require_mom_agree=req.require_momentum)
 
@@ -186,7 +235,10 @@ def run_analysis(req: RunRequest):
             "asof_date": pd.to_datetime(X["date"]).max().isoformat()[:10],
             "last_headline_ts": None if news.empty else pd.to_datetime(news["ts"]).max().isoformat(),
             "n_headlines": int(len(news)),
+            "model": req.model,
+            "model_label": _MODEL_LABELS[req.model],
         },
+        "model_report": model_report,
         "metrics": {k: _clean(v) for k, v in metrics.items()},
         "perf": {
             "date": [d.isoformat()[:10] for d in perf["date"]],

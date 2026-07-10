@@ -49,6 +49,24 @@ function initControls(config) {
     $("#custom-tickers-field").hidden = preset.value !== "__custom__";
   });
 
+  // signal model selector
+  const modelSel = $("#model");
+  (config.models ?? [{ id: "rule", label: "Rule blend" }]).forEach((m) => {
+    const opt = document.createElement("option");
+    opt.value = m.id;
+    opt.textContent = m.label;
+    modelSel.appendChild(opt);
+  });
+  const MODEL_HINTS = {
+    rule: "Transparent sentiment + momentum formula. Pick an ML model to train it live on this data and see its out-of-sample quality.",
+    logistic: "Standardized logistic regression trained live on this run's features (returns, volatility, sentiment, topology). Fast and interpretable.",
+    xgboost: "Gradient-boosted trees trained live — captures non-linear feature interactions. A few seconds to fit.",
+    ensemble: "Soft-voting ensemble of logistic regression + gradient boosting + XGBoost. Slowest, usually steadiest.",
+  };
+  modelSel.addEventListener("change", () => {
+    $("#model-hint").textContent = MODEL_HINTS[modelSel.value] ?? "";
+  });
+
   $("#mode-seg").addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-mode]");
     if (!btn) return;
@@ -106,7 +124,7 @@ function currentTickers() {
 async function run() {
   const btn = $("#run");
   btn.classList.add("busy");
-  btn.textContent = "Running…";
+  btn.textContent = $("#model").value === "rule" ? "Running…" : "Training model…";
   $("#error-banner").hidden = true;
   $$(".stat .value").forEach((el) => (el.textContent = ""));
 
@@ -120,6 +138,7 @@ async function run() {
     cost_bps: Number($("#cost").value),
     engine: $("#engine").value,
     news_source: $("#news-source").value,
+    model: $("#model").value,
   };
 
   try {
@@ -148,6 +167,7 @@ async function run() {
 function renderAll(r) {
   renderKpis(r.metrics, r.meta);
   renderMeta(r.meta);
+  renderModelQuality(r.model_report, r.meta);
   equityChart($("#chart-equity"), r.perf);
   drawdownChart($("#chart-drawdown"), r.perf);
   sentimentBars($("#chart-sent"), r.sentiment_by_ticker);
@@ -180,8 +200,9 @@ function renderKpis(m, meta) {
 function renderMeta(meta) {
   const engine = { finbert: "FinBERT", lexicon: "Lexicon" }[meta.engine_used] ?? meta.engine_used;
   const source = meta.mode === "demo" ? "Demo data" : "Live data";
+  const model = meta.model_label ?? "Rule blend";
   const chip = $("#engine-chip");
-  chip.textContent = `${engine} · ${source}`;
+  chip.textContent = `${model} · ${engine} · ${source}`;
   chip.hidden = false;
 
   const strip = $("#meta-strip");
@@ -190,8 +211,31 @@ function renderMeta(meta) {
     <span><b>Last headline</b> ${meta.last_headline_ts ? fmtWhen(meta.last_headline_ts) : "—"}</span>
     <span><b>As-of</b> ${meta.asof_date}</span>
     <span><b>Fetched</b> ${fmtWhen(meta.fetched_at)}</span>
-    <span><b>Engine</b> Rule blend · ${engine} · ${source}</span>`;
+    <span><b>Signal</b> ${model} · ${engine} · ${source}</span>`;
   strip.hidden = false;
+}
+
+function renderModelQuality(report, meta) {
+  const panel = $("#model-quality");
+  if (!report) {
+    panel.hidden = true;
+    return;
+  }
+  panel.hidden = false;
+  $("#mq-title").textContent = `Model quality — ${meta.model_label}`;
+  const fmt = {
+    auc: (v) => v.toFixed(3),
+    accuracy: (v) => `${(v * 100).toFixed(1)}%`,
+    precision: (v) => `${(v * 100).toFixed(1)}%`,
+    recall: (v) => `${(v * 100).toFixed(1)}%`,
+    suggested_threshold: (v) => v.toFixed(2),
+  };
+  for (const [key, f] of Object.entries(fmt)) {
+    const v = report[key];
+    $(`[data-mq="${key}"]`).textContent = v == null ? "—" : f(v);
+  }
+  $("#mq-features").textContent =
+    `Trained on ${report.n_rows} ticker-days · features: ${report.features.join(", ")}`;
 }
 
 const BADGE = {
@@ -273,13 +317,20 @@ function renderTopology() {
 
 /* ---------------- boot ---------------- */
 (async function boot() {
+  const backendBanner = $("#backend-banner");
   try {
-    const config = await (await fetch("/api/config")).json();
+    const res = await fetch("/api/config");
+    if (!res.ok) throw new Error(`the server answered ${res.status} for /api/config`);
+    const config = await res.json();
+    backendBanner.remove(); // backend is alive — clear the static fallback banner
     initControls(config);
     await run(); // auto-run the demo so the page opens alive
   } catch (err) {
-    const banner = $("#error-banner");
-    banner.textContent = `⚠ Could not reach the API: ${err.message}`;
-    banner.hidden = false;
+    backendBanner.innerHTML =
+      `⚠ Can't reach the analysis backend (${err.message}).<br>` +
+      `<span class="banner-detail">This page is only the dashboard — the buttons call a FastAPI ` +
+      `server. Run <code>python3 server.py</code> and open <b>http://localhost:8000</b>. Static hosts ` +
+      `(GitHub Pages, Vercel static) can't run it; use Render / Fly / Docker via the included ` +
+      `<code>render.yaml</code> / <code>Dockerfile</code>.</span>`;
   }
 })();
