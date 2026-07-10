@@ -143,9 +143,10 @@ Two hosted flavors — see **[DEPLOY.md](DEPLOY.md)** for step-by-step instructi
 
 - **Render** (`render.yaml` + lite `Dockerfile`): fits the free 512MB tier by skipping
   `torch`/`transformers`; the app falls back to its lexicon sentiment engine.
-- **Hugging Face Spaces** (`Dockerfile.hf`): the free CPU tier has 16GB RAM, so this
-  image ships the **full FinBERT transformer**, pre-downloaded at build time — the
-  right choice when the link needs to showcase everything.
+- **Hugging Face Spaces** (`deploy/hf-space/`): the free Gradio-SDK tier has 16GB RAM,
+  so it hosts the **full FinBERT transformer** — a tiny wrapper serves the real FastAPI
+  dashboard through the Space. The right choice when the link needs to showcase
+  everything. (`Dockerfile.hf` does the same for any ~2GB Docker host.)
 
 ```bash
 # Render — connects render.yaml automatically, or manually:

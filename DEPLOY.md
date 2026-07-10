@@ -6,7 +6,7 @@ Two hosted flavors, depending on what you want the link to showcase:
 |---|---|---|
 | Sentiment engine | Lexicon only | **Full FinBERT transformer** |
 | RAM | 512MB — torch doesn't fit | 16GB — plenty |
-| Config | `render.yaml` + `Dockerfile` (lite) | `Dockerfile.hf` (full) |
+| Config | `render.yaml` + `Dockerfile` (lite) | `deploy/hf-space/` (Gradio-SDK wrapper) |
 | Cold start | ~30s after idle | ~30s after idle (48h) |
 | Best for | Quick always-on demo link | **Fully showcasing the project** |
 
@@ -20,50 +20,41 @@ startup and falls back to the lexicon engine gracefully either way).
    GitHub repo — it reads `render.yaml` automatically.
 2. Deploys from `main` on every push. Done.
 
-## Hugging Face Spaces (full FinBERT showcase)
+## Hugging Face Spaces (full FinBERT showcase — free Gradio tier)
+
+Docker Spaces are gated on some accounts, but the free **Gradio** SDK works fine:
+a Gradio Space simply runs `python app.py` and proxies whatever listens on port
+7860 — it doesn't have to be a Gradio UI. `deploy/hf-space/app.py` is a tiny
+wrapper that serves this project's real FastAPI dashboard on that port.
 
 1. Create the Space: [huggingface.co/new-space](https://huggingface.co/new-space) →
-   name it (e.g. `sentiment-forecasting`), SDK **Docker** → **Blank**, hardware
+   name it (e.g. `sentiment-forecasting`), SDK **Gradio** → **Blank**, hardware
    **CPU basic (free)**.
 
-2. From your local clone, make a deploy branch where the full Dockerfile is *the*
-   Dockerfile and the README carries the Space front matter:
+2. From your local clone, make a deploy branch with the Space files at the root:
 
    ```bash
    git checkout -b hf-space main
-   cp Dockerfile.hf Dockerfile
-
-   # HF reads this YAML block from the top of README.md
-   cat > /tmp/hf-header.md <<'EOF'
-   ---
-   title: Sentiment Forecasting
-   emoji: 📰
-   colorFrom: blue
-   colorTo: indigo
-   sdk: docker
-   app_port: 7860
-   pinned: false
-   ---
-   EOF
-   cat README.md >> /tmp/hf-header.md && mv /tmp/hf-header.md README.md
-
+   cp deploy/hf-space/app.py .
+   cp deploy/hf-space/requirements.txt .   # CPU torch + transformers for FinBERT
+   cp deploy/hf-space/README.md .          # carries the Space's YAML front matter
    git add -A && git commit -m "Hugging Face Space deploy"
    ```
 
-3. Push the branch to the Space (use a HF access token with *write* scope as the
-   password — create one at huggingface.co/settings/tokens):
+3. Push the branch to the Space (username = your HF username; password = an
+   access token with *write* scope from huggingface.co/settings/tokens):
 
    ```bash
    git remote add space https://huggingface.co/spaces/<your-hf-username>/sentiment-forecasting
-   git push space hf-space:main
+   git push --force space hf-space:main
    ```
 
-4. The Space builds the image (~5–10 min the first time — it bakes the FinBERT
-   model in so visitors never wait for the download) and serves at
-   `https://huggingface.co/spaces/<you>/sentiment-forecasting`.
+4. First build takes a few minutes (torch install). The app then serves at
+   `https://huggingface.co/spaces/<you>/sentiment-forecasting`. The first
+   FinBERT run downloads the model (~440MB) once; it stays cached while the
+   Space is up. The lexicon engine is instant either way.
 
-To update later: merge changes into `main`, then
-`git checkout hf-space && git merge main && git push space hf-space:main`.
+To update later: `git checkout hf-space && git merge main && git push space hf-space:main`.
 
 ## Anywhere else (Docker)
 
