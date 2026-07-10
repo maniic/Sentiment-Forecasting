@@ -32,7 +32,7 @@ to **Live market data** (real headlines, real prices).
 | 1. 📰 **Collect** | Pull the last few days of headlines for each ticker | Google News RSS / Yahoo Finance |
 | 2. 🧠 **Read** | A finance-tuned AI reads each headline: positive / negative / neutral | FinBERT (lexicon fallback built in) |
 | 3. 📐 **Shape** | Recent returns become a 3D point cloud; its *shape* is measured | Topological data analysis |
-| 4. 🎲 **Predict** | Sentiment + momentum + shape → probability each ticker rises tomorrow | Logistic Regression / XGBoost / rule blend |
+| 4. 🎲 **Predict** | Sentiment + momentum + shape → probability each ticker rises tomorrow — pick the rule blend or train Logistic / XGBoost / Ensemble live in the app | scikit-learn / XGBoost |
 | 5. 📊 **Test** | Simulate trading that signal historically, minus costs, vs. buy & hold | Backtester |
 
 ### The sentiment view
@@ -113,7 +113,12 @@ so color never carries meaning alone.
   to statistical proxies. No internet? Demo mode simulates the whole market. The UI
   always reports which engine actually ran.
 - **No look-ahead bias.** Signals formed on day *t* are evaluated on day *t+1* returns;
-  train/test splits are strictly chronological.
+  train/test splits are strictly chronological — and when you train an ML model in the
+  app, both its quality scores *and* the backtest curve use only the held-out final 20%
+  of days, so the model is never graded on data it trained on.
+- **Live model training.** Pick Logistic Regression, XGBoost, or a voting Ensemble in
+  the sidebar and it trains on that run's features in seconds, reporting out-of-sample
+  AUC / accuracy / precision / recall next to the charts.
 - **Honest backtesting.** Trading costs, drawdown tracking, win rate, and an
   equal-weight buy-and-hold benchmark on every run.
 - **Tested + CI.** 67 pytest tests — schemas, features, news parsing, models, and the

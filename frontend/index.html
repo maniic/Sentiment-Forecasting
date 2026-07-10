@@ -50,6 +50,13 @@
       <input class="input" id="custom-tickers" value="SPY, QQQ, AAPL" spellcheck="false">
     </label>
 
+    <label class="field">
+      <span class="label">Signal model</span>
+      <select class="select" id="model"></select>
+      <p class="hint" id="model-hint">Transparent sentiment + momentum formula. Pick an ML model to
+      train it live on this data and see its out-of-sample quality.</p>
+    </label>
+
     <div class="field">
       <span class="label">Signal threshold — <span class="num accent" id="threshold-val">0.60</span></span>
       <input class="range" type="range" id="threshold" min="0.45" max="0.75" step="0.01" value="0.60">
@@ -102,6 +109,17 @@
   <!-- ============================ Main ============================ -->
   <main class="main">
 
+    <!-- Present in the HTML so it shows even if JS never runs (file:// opens,
+         static hosting). app.js removes it once the backend answers. -->
+    <div id="backend-banner" class="error-banner">
+      ⏳ Connecting to the analysis backend…<br>
+      <span class="banner-detail">If this message never goes away, no Python backend is running behind
+      this page — the controls call a FastAPI server, so opening <code>index.html</code> directly or
+      hosting the <code>frontend/</code> folder on a static host (GitHub Pages, Vercel static) gives you
+      dead buttons. Run <code>python3 server.py</code> and open <b>http://localhost:8000</b>, or deploy
+      with the included <code>render.yaml</code> / <code>Dockerfile</code>.</span>
+    </div>
+
     <div id="error-banner" class="error-banner" hidden></div>
 
     <section class="kpis" id="kpis" aria-live="polite">
@@ -122,6 +140,20 @@
 
     <!-- Performance -->
     <section class="panel" id="panel-perf" role="tabpanel">
+      <div class="card" id="model-quality" hidden>
+        <h2 class="chart-title" id="mq-title">Model quality</h2>
+        <p class="chart-sub" id="mq-caption">Trained live on this run's data with a strictly
+        chronological 80/20 split. Both these scores <b>and the backtest curve</b> use only the
+        held-out final 20% of days — the model is never graded on days it trained on.</p>
+        <div class="mq-grid">
+          <div class="stat"><span class="label">AUC</span><span class="value num" data-mq="auc"></span></div>
+          <div class="stat"><span class="label">Accuracy</span><span class="value num" data-mq="accuracy"></span></div>
+          <div class="stat"><span class="label">Precision</span><span class="value num" data-mq="precision"></span></div>
+          <div class="stat"><span class="label">Recall</span><span class="value num" data-mq="recall"></span></div>
+          <div class="stat"><span class="label">Suggested threshold</span><span class="value num" data-mq="suggested_threshold"></span></div>
+        </div>
+        <p class="chart-sub" id="mq-features" style="margin:12px 0 0"></p>
+      </div>
       <div class="chart-card">
         <h2 class="chart-title">Growth of $1 — strategy vs. buy &amp; hold</h2>
         <p class="chart-sub">Each day the strategy holds an equal-weight basket of tickers whose signal cleared

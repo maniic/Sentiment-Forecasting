@@ -67,6 +67,43 @@ def test_run_demo_is_deterministic():
     assert a["perf"]["equity"] == b["perf"]["equity"]
 
 
+def test_run_with_trained_model():
+    res = client.post(
+        "/api/run",
+        json={
+            "mode": "demo",
+            "tickers": ["AAPL", "MSFT", "NVDA"],
+            "engine": "lexicon",
+            "model": "logistic",
+        },
+    )
+    assert res.status_code == 200, res.text
+    data = res.json()
+
+    report = data["model_report"]
+    assert report is not None
+    assert 0.0 <= report["auc"] <= 1.0
+    assert 0.0 <= report["accuracy"] <= 1.0
+    assert report["features"], "trained model should report its feature list"
+    assert data["meta"]["model"] == "logistic"
+    assert data["meta"]["model_label"] == "Logistic regression"
+
+    # trained-model probabilities should differ from the rule blend's
+    rule = client.post(
+        "/api/run",
+        json={"mode": "demo", "tickers": ["AAPL", "MSFT", "NVDA"], "engine": "lexicon", "model": "rule"},
+    ).json()
+    assert rule["model_report"] is None
+    assert rule["metrics"] != data["metrics"]
+
+
+def test_run_rejects_unknown_model():
+    res = client.post(
+        "/api/run", json={"mode": "demo", "tickers": ["AAPL"], "model": "skynet"}
+    )
+    assert res.status_code == 422
+
+
 def test_run_rejects_empty_tickers():
     res = client.post("/api/run", json={"mode": "demo", "tickers": []})
     assert res.status_code == 422
