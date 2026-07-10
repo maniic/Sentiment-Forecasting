@@ -1,16 +1,27 @@
 """
-Sentiment analysis using FinBERT for financial headlines.
+Sentiment analysis for financial headlines.
 
-Provides thread-safe access to the FinBERT model and functions for
-scoring headlines and aggregating daily sentiment.
+Two engines are supported:
+
+1. **FinBERT** (``yiyanghkust/finbert-tone``) — a transformer fine-tuned on
+   financial text. Used automatically when ``transformers``/``torch`` are
+   installed. Loaded lazily and cached with a thread-safe singleton so the
+   ~400MB model is only pulled once, and only when actually needed.
+
+2. **Lexicon fallback** — a lightweight financial word-list scorer used when
+   the deep-learning stack is unavailable (e.g. a laptop without torch, or a
+   free hosting tier). It keeps the whole pipeline functional everywhere.
+
+``score_headlines`` picks the best available engine and records which one it
+used in ``active_engine()`` so the UI can report it honestly.
 """
 from __future__ import annotations
 
 import logging
+import re
 import threading
 
 import pandas as pd
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
 
 from src.config import MARKET_TZ
 from src.schemas import Columns
@@ -24,13 +35,33 @@ FINBERT_ID = "yiyanghkust/finbert-tone"
 _FINBERT_PIPE = None
 _FINBERT_LOCK = threading.Lock()
 
+# Which engine scored the most recent batch ("finbert" | "lexicon" | None)
+_ACTIVE_ENGINE: str | None = None
+
+
+def active_engine() -> str | None:
+    """Name of the engine used by the most recent ``score_headlines`` call."""
+    return _ACTIVE_ENGINE
+
+
+def finbert_available() -> bool:
+    """True if the transformers/torch stack can be imported."""
+    try:
+        import transformers  # noqa: F401
+        import torch  # noqa: F401
+
+        return True
+    except Exception:
+        return False
+
 
 def get_finbert(device: int | None = None):
     """
     Load a FinBERT pipeline with thread-safe singleton pattern.
 
     Uses double-checked locking to ensure the model is only loaded once
-    even when called from multiple threads.
+    even when called from multiple threads. Imports transformers lazily so
+    that merely importing this module never requires torch.
 
     Parameters
     ----------
@@ -54,6 +85,12 @@ def get_finbert(device: int | None = None):
         if _FINBERT_PIPE is not None:
             return _FINBERT_PIPE
 
+        from transformers import (
+            AutoModelForSequenceClassification,
+            AutoTokenizer,
+            pipeline,
+        )
+
         # Auto-detect device if not provided
         if device is None:
             try:
@@ -72,10 +109,90 @@ def get_finbert(device: int | None = None):
         return _FINBERT_PIPE
 
 
+# ---------------------------------------------------------------------------
+# Lexicon fallback engine
+# ---------------------------------------------------------------------------
+# Compact financial sentiment word lists (inspired by the Loughran-McDonald
+# finance lexicon). Deliberately small: the goal is a transparent, dependency-
+# free fallback, not to beat FinBERT.
+_POSITIVE_WORDS = {
+    "beat", "beats", "strong", "surge", "surges", "soar", "soars", "rally",
+    "rallies", "record", "growth", "profit", "profits", "gain", "gains",
+    "upgrade", "upgraded", "bullish", "outperform", "exceeds", "exceeded",
+    "jump", "jumps", "rise", "rises", "rose", "boom", "breakthrough", "wins",
+    "win", "success", "successful", "expands", "expansion", "optimistic",
+    "buyback", "dividend", "tops", "topped", "positive", "momentum",
+}
+_NEGATIVE_WORDS = {
+    "miss", "misses", "missed", "weak", "plunge", "plunges", "crash",
+    "crashes", "fall", "falls", "fell", "drop", "drops", "dropped", "loss",
+    "losses", "downgrade", "downgraded", "bearish", "underperform", "cuts",
+    "cut", "layoff", "layoffs", "lawsuit", "probe", "investigation", "fraud",
+    "recall", "warning", "warns", "slump", "slumps", "tumble", "tumbles",
+    "decline", "declines", "fears", "fear", "risk", "selloff", "negative",
+    "bankruptcy", "default", "slowdown",
+}
+
+_WORD_RE = re.compile(r"[a-z']+")
+
+
+def _lexicon_score(text: str) -> tuple[str, float, float]:
+    """
+    Score one headline with the word-list engine.
+
+    Returns
+    -------
+    tuple
+        (label, prob, signed_score) mirroring FinBERT's output format.
+    """
+    words = _WORD_RE.findall(text.lower())
+    pos = sum(w in _POSITIVE_WORDS for w in words)
+    neg = sum(w in _NEGATIVE_WORDS for w in words)
+    hits = pos - neg
+    if hits == 0:
+        return "NEUTRAL", 0.5, 0.0
+    # Confidence grows with the number of net sentiment words, capped at 0.95
+    prob = min(0.55 + 0.15 * abs(hits), 0.95)
+    if hits > 0:
+        return "POSITIVE", prob, +prob
+    return "NEGATIVE", prob, -prob
+
+
+def _score_with_lexicon(texts: list[str]) -> tuple[list[str], list[float], list[float]]:
+    labels, probs, signed = [], [], []
+    for t in texts:
+        lab, prob, sgn = _lexicon_score(t)
+        labels.append(lab)
+        probs.append(prob)
+        signed.append(sgn)
+    return labels, probs, signed
+
+
+def _score_with_finbert(
+    texts: list[str], batch_size: int
+) -> tuple[list[str], list[float], list[float]]:
+    pipe = get_finbert()
+    preds = pipe(texts, batch_size=batch_size)
+    labels, probs, signed = [], [], []
+    for p in preds:
+        lab = p["label"].upper()
+        prob = float(p["score"])
+        labels.append(lab)
+        probs.append(prob)
+        if "POS" in lab:
+            signed.append(+prob)
+        elif "NEG" in lab:
+            signed.append(-prob)
+        else:
+            signed.append(0.0)
+    return labels, probs, signed
+
+
 def score_headlines(
     df: pd.DataFrame,
     text_col: str = "headline",
     batch_size: int = 32,
+    engine: str = "auto",
 ) -> pd.DataFrame:
     """
     Add sentiment columns to headlines DataFrame.
@@ -94,38 +211,39 @@ def score_headlines(
         Name of column containing text to score
     batch_size : int
         Batch size for model inference
+    engine : str
+        "auto" (FinBERT if installed, else lexicon), "finbert", or "lexicon"
 
     Returns
     -------
     pd.DataFrame
         Copy of input with sentiment columns added
     """
+    global _ACTIVE_ENGINE
+
     if df is None or df.empty:
         out = df.copy() if isinstance(df, pd.DataFrame) else pd.DataFrame()
         for c in [Columns.SENT_LABEL, Columns.SENT_PROB, Columns.SENT_SCORE]:
             out[c] = pd.Series(dtype="float64") if c != Columns.SENT_LABEL else pd.Series(dtype="object")
         return out
 
-    pipe = get_finbert()
     texts = df[text_col].astype(str).tolist()
+    logger.debug("Scoring %d headlines (engine=%s)", len(texts), engine)
 
-    logger.debug("Scoring %d headlines", len(texts))
-
-    # Run model in batches to avoid memory spikes
-    preds = pipe(texts, batch_size=batch_size)
-
-    labels, probs, signed = [], [], []
-    for p in preds:
-        lab = p["label"].upper()
-        prob = float(p["score"])
-        labels.append(lab)
-        probs.append(prob)
-        if "POS" in lab:
-            signed.append(+prob)
-        elif "NEG" in lab:
-            signed.append(-prob)
-        else:
-            signed.append(0.0)
+    use_finbert = engine == "finbert" or (engine == "auto" and finbert_available())
+    if use_finbert:
+        try:
+            labels, probs, signed = _score_with_finbert(texts, batch_size)
+            _ACTIVE_ENGINE = "finbert"
+        except Exception as e:
+            if engine == "finbert":
+                raise
+            logger.warning("FinBERT failed (%s); falling back to lexicon engine", e)
+            labels, probs, signed = _score_with_lexicon(texts)
+            _ACTIVE_ENGINE = "lexicon"
+    else:
+        labels, probs, signed = _score_with_lexicon(texts)
+        _ACTIVE_ENGINE = "lexicon"
 
     out = df.copy()
     out[Columns.SENT_LABEL] = labels

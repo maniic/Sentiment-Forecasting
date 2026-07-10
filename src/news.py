@@ -81,33 +81,60 @@ def fetch_headlines_google(ticker: str, days: int) -> pd.DataFrame:
 
 # yfinance
 
+def _parse_yf_news_item(it: dict) -> tuple[str, dt.datetime | None, str, str]:
+    """
+    Extract (title, ts, source, link) from a yfinance news item.
+
+    Handles both the legacy flat schema (title/providerPublishTime/publisher)
+    and the newer nested schema ({"content": {"title", "pubDate", ...}}).
+    """
+    content = it.get("content") if isinstance(it.get("content"), dict) else None
+    if content is not None:
+        # New schema (yfinance >= 0.2.50)
+        title = _normalize_title(content.get("title", ""))
+        ts = None
+        pub = content.get("pubDate") or content.get("displayTime")
+        if pub:
+            parsed = pd.to_datetime(pub, utc=True, errors="coerce")
+            ts = None if pd.isna(parsed) else parsed.to_pydatetime()
+        provider = content.get("provider") or {}
+        source = provider.get("displayName", "") if isinstance(provider, dict) else ""
+        link = ""
+        for key in ("canonicalUrl", "clickThroughUrl"):
+            url_obj = content.get(key)
+            if isinstance(url_obj, dict) and url_obj.get("url"):
+                link = url_obj["url"]
+                break
+        return title, ts, source, link
+
+    # Legacy schema: providerPublishTime is epoch seconds
+    title = _normalize_title(it.get("title", ""))
+    ts = None
+    ts_raw = it.get("providerPublishTime")
+    if ts_raw is not None:
+        ts = dt.datetime.fromtimestamp(int(ts_raw), tz=dt.timezone.utc)
+    return title, ts, it.get("publisher", "") or "", it.get("link", "") or ""
+
+
 def fetch_headlines_yfinance(ticker: str, days: int) -> pd.DataFrame:
     """Fetch recent headlines via yfinance's Ticker.news"""
     try:
         items = (yf.Ticker(ticker).news or [])
     except Exception:
         items = []
-        
+
     cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)
     rows = []
     for it in items:
-        title = _normalize_title(it.get("title", ""))
-        if not title:
+        title, ts, source, link = _parse_yf_news_item(it)
+        if not title or ts is None or ts < cutoff:
             continue
-        
-        # providerPublishTime is epoch seconds
-        ts_raw = it.get("providerPublishTime")
-        if ts_raw is None:
-            continue
-        ts = dt.datetime.fromtimestamp(int(ts_raw), tz=dt.timezone.utc)
-        if ts < cutoff:
-            continue
-        
+
         rows.append(
-            {"ticker": ticker.upper(), 
-             "ts": ts, "headline": title, 
-             "source": it.get("publisher", "") or "", 
-             "link": it.get("link", "") or ""}
+            {"ticker": ticker.upper(),
+             "ts": ts, "headline": title,
+             "source": source,
+             "link": link}
         )
     
     if not rows:
