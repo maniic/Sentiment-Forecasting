@@ -49,10 +49,17 @@ wrapper that serves this project's real FastAPI dashboard on that port.
    git push --force space hf-space:main
    ```
 
-4. First build takes a few minutes (torch install). The app then serves at
-   `https://huggingface.co/spaces/<you>/sentiment-forecasting`. The first
-   FinBERT run downloads the model (~440MB) once; it stays cached while the
-   Space is up. The lexicon engine is instant either way.
+4. First build takes a few minutes (torch install). The Space README's
+   `preload_from_hub: yiyanghkust/finbert-tone` line makes HF download the
+   FinBERT weights **during the build**, so even the very first FinBERT run
+   is fast. The app serves at
+   `https://huggingface.co/spaces/<you>/sentiment-forecasting`
+   (direct full-screen URL: `https://<you>-sentiment-forecasting.hf.space`).
+
+Notes from the Spaces docs: free CPU Basic = 2 vCPU / 16GB RAM; the Space
+sleeps after inactivity and wakes on the next visit; outbound network is
+limited to ports 80/443/8080 (fine for Google News RSS and yfinance, so
+Live mode works too).
 
 To update later: `git checkout hf-space && git merge main && git push space hf-space:main`.
 
