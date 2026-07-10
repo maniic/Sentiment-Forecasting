@@ -1,15 +1,16 @@
-# Core — the app, pipeline, and tests run with just these
+# Core — the API server, pipeline, and tests run with just these
 pandas
 numpy
 scikit-learn
 yfinance
 feedparser
-streamlit
-plotly
+fastapi
+uvicorn
 matplotlib
 joblib
 xgboost
 pytest
+httpx
 
 # Deep learning sentiment (optional — the app falls back to a built-in
 # lexicon engine if these aren't installed)

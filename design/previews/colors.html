@@ -1,0 +1,52 @@
+<!-- @dsCard group="Foundations" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Colors — Sentiment Forecasting</title>
+<link rel="stylesheet" href="../tokens.css">
+<style>
+  body { margin: 0; padding: 32px; }
+  h2 { font-size: 1rem; color: var(--ink); margin: 0 0 12px; }
+  section { margin-bottom: 28px; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .sw { width: 132px; }
+  .chip { height: 56px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 6px; }
+  .sw .name { font-size: .8125rem; color: var(--ink-2); font-weight: 600; }
+  .sw .hex { font-family: var(--font-mono); font-size: .6875rem; color: var(--ink-3); }
+</style>
+</head>
+<body class="sf-body">
+  <section>
+    <h2>Surfaces &amp; ink</h2>
+    <div class="row">
+      <div class="sw"><div class="chip" style="background:var(--page)"></div><div class="name">page</div><div class="hex">#0d0d0d</div></div>
+      <div class="sw"><div class="chip" style="background:var(--surface-1)"></div><div class="name">surface-1</div><div class="hex">#1a1a19</div></div>
+      <div class="sw"><div class="chip" style="background:var(--surface-2)"></div><div class="name">surface-2</div><div class="hex">#222220</div></div>
+      <div class="sw"><div class="chip" style="background:var(--surface-3)"></div><div class="name">surface-3</div><div class="hex">#2a2a28</div></div>
+      <div class="sw"><div class="chip" style="background:var(--ink)"></div><div class="name">ink</div><div class="hex">#ffffff</div></div>
+      <div class="sw"><div class="chip" style="background:var(--ink-2)"></div><div class="name">ink-2</div><div class="hex">#c3c2b7</div></div>
+      <div class="sw"><div class="chip" style="background:var(--ink-3)"></div><div class="name">ink-3</div><div class="hex">#898781</div></div>
+    </div>
+  </section>
+  <section>
+    <h2>Accent &amp; chart series <span style="color:var(--ink-3);font-weight:400;font-size:.8125rem">(CVD-validated order)</span></h2>
+    <div class="row">
+      <div class="sw"><div class="chip" style="background:var(--accent)"></div><div class="name">accent / chart-1 · strategy</div><div class="hex">#3987e5</div></div>
+      <div class="sw"><div class="chip" style="background:var(--chart-2)"></div><div class="name">chart-2 · drawdown/negative</div><div class="hex">#e66767</div></div>
+      <div class="sw"><div class="chip" style="background:var(--chart-3)"></div><div class="name">chart-3 · topology</div><div class="hex">#9085e9</div></div>
+      <div class="sw"><div class="chip" style="background:var(--chart-4)"></div><div class="name">chart-4 · spare</div><div class="hex">#199e70</div></div>
+      <div class="sw"><div class="chip" style="background:var(--chart-bench)"></div><div class="name">benchmark (dashed only)</div><div class="hex">#898781</div></div>
+      <div class="sw"><div class="chip" style="background:var(--good)"></div><div class="name">good delta</div><div class="hex">#0ca30c</div></div>
+    </div>
+  </section>
+  <section>
+    <h2>Sentiment polarity (diverging blue ↔ red, never color-alone)</h2>
+    <div class="row" style="align-items:center">
+      <span class="badge badge-pos">▲ Positive</span>
+      <span class="badge badge-neu">• Neutral</span>
+      <span class="badge badge-neg">▼ Negative</span>
+    </div>
+  </section>
+</body>
+</html>

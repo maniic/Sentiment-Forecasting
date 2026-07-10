@@ -1,0 +1,43 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stat tiles — Sentiment Forecasting</title>
+<link rel="stylesheet" href="../tokens.css">
+<style>
+  body { margin: 0; padding: 32px; }
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .kpis .card { padding: 18px 20px; }
+</style>
+</head>
+<body class="sf-body">
+  <div class="kpis">
+    <div class="card stat">
+      <span class="label">Total return</span>
+      <span class="value num">23.9%</span>
+      <span class="delta up num">▲ +10.3% vs buy &amp; hold</span>
+    </div>
+    <div class="card stat">
+      <span class="label">Sharpe ratio</span>
+      <span class="value num">1.80</span>
+      <span class="delta" style="color:var(--ink-3)">risk-adjusted, annualized</span>
+    </div>
+    <div class="card stat">
+      <span class="label">Max drawdown</span>
+      <span class="value num">−7.4%</span>
+      <span class="delta" style="color:var(--ink-3)">worst peak-to-trough</span>
+    </div>
+    <div class="card stat">
+      <span class="label">Win rate</span>
+      <span class="value num">57%</span>
+      <span class="delta" style="color:var(--ink-3)">of invested days</span>
+    </div>
+    <div class="card stat">
+      <span class="label">Days in market</span>
+      <span class="value num">114<span style="color:var(--ink-3);font-size:1.1rem"> / 159</span></span>
+      <span class="delta" style="color:var(--ink-3)">threshold 0.60</span>
+    </div>
+  </div>
+</body>
+</html>

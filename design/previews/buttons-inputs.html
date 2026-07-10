@@ -1,0 +1,45 @@
+<!-- @dsCard group="Controls" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Buttons & Inputs — Sentiment Forecasting</title>
+<link rel="stylesheet" href="../tokens.css">
+<style>
+  body { margin: 0; padding: 32px; display: grid; gap: 28px; max-width: 520px; }
+  h2 { font-size: .8125rem; color: var(--ink-3); text-transform: uppercase; letter-spacing: .08em; margin: 0 0 10px; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+</style>
+</head>
+<body class="sf-body">
+  <section>
+    <h2>Buttons</h2>
+    <div class="row">
+      <button class="btn btn-primary">▶ Run analysis</button>
+      <button class="btn btn-ghost">Reset</button>
+      <button class="btn btn-primary" disabled>Running…</button>
+    </div>
+  </section>
+  <section>
+    <h2>Segmented control — data source</h2>
+    <div class="seg" role="group" aria-label="Data source">
+      <button aria-pressed="true">🚀 Demo</button>
+      <button aria-pressed="false">🌐 Live</button>
+    </div>
+  </section>
+  <section>
+    <h2>Fields</h2>
+    <div style="display:grid; gap:16px">
+      <label class="field">
+        <span class="label">Ticker preset</span>
+        <select class="select"><option>Mega Tech (AAPL, MSFT, NVDA, AMZN, GOOGL)</option><option>Top ETFs (SPY, QQQ)</option></select>
+      </label>
+      <label class="field">
+        <span class="label">Signal threshold — <span class="num" style="color:var(--ink)">0.60</span></span>
+        <input class="range" type="range" min="0.45" max="0.75" step="0.01" value="0.60">
+      </label>
+      <label class="check"><input type="checkbox" checked> Require positive 5-day momentum</label>
+    </div>
+  </section>
+</body>
+</html>
