@@ -42,6 +42,7 @@ _STATE_KEYS = [
     "scored",
     "daily",
     "price",
+    "close",
     "X",
     "Xp",
     "perf",

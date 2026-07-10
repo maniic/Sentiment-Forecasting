@@ -1,17 +1,21 @@
-feedparser
+# Core — the app, pipeline, and tests run with just these
 pandas
 numpy
-yfinance
-transformers
-torch
 scikit-learn
-matplotlib
+yfinance
+feedparser
 streamlit
 plotly
-giotto-tda
-xgboost
-lightgbm
-optuna
+matplotlib
 joblib
+xgboost
 pytest
-seaborn
+
+# Deep learning sentiment (optional — the app falls back to a built-in
+# lexicon engine if these aren't installed)
+transformers
+torch
+
+# Topological data analysis (optional — statistical fallback is used if
+# giotto-tda is unavailable; it can be tricky to build on newer Pythons)
+# giotto-tda

@@ -13,9 +13,14 @@ from src.config import (
     ROUND_TRIP_COST_BPS,
     NEWS_SOURCE,
 )
+from src.demo import generate_demo_data
 from src.news import fetch_all_headlines
 from src.sentiment import score_headlines, aggregate_daily_sentiment
-from src.features import compute_price_features, join_sentiment_with_prices
+from src.features import (
+    compute_price_features,
+    compute_price_features_from_closes,
+    join_sentiment_with_prices,
+)
 from src.ml import add_quick_prob
 from src.backtest import apply_signals, backtest_equal_weight, todays_signals
 from src.visuals import plot_equity
@@ -30,20 +35,31 @@ def parse_args():
     p.add_argument("--require-mom", action="store_true", default=True)
     p.add_argument("--cost-bps", type=float, default=ROUND_TRIP_COST_BPS)
     p.add_argument("--outdir", default="output")
+    p.add_argument("--demo", action="store_true",
+                   help="Run on synthetic offline demo data (no network needed)")
+    p.add_argument("--engine", default="auto", choices=["auto", "finbert", "lexicon"],
+                   help="Sentiment engine (auto = FinBERT if installed, else lexicon)")
     return p.parse_args()
 
 def main():
     args = parse_args()
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
-    
-    # 1) News → Sentiment
-    news = fetch_all_headlines(args.tickers, args.lookback_days, source=args.news_source)
-    scored = score_headlines(news)
-    daily = aggregate_daily_sentiment(scored)
 
-    # 2) Prices → Features
-    price = compute_price_features(args.tickers, lookback_days=args.price_lookback)
+    # 1) News + Prices (live or demo)
+    if args.demo:
+        news, close = generate_demo_data(
+            args.tickers, news_days=args.lookback_days,
+            price_lookback_days=args.price_lookback,
+        )
+        price = compute_price_features_from_closes(close)
+    else:
+        news = fetch_all_headlines(args.tickers, args.lookback_days, source=args.news_source)
+        price = compute_price_features(args.tickers, lookback_days=args.price_lookback)
+
+    # 2) Sentiment
+    scored = score_headlines(news, engine=args.engine)
+    daily = aggregate_daily_sentiment(scored)
 
     # 3) Join → quick probability
     X = join_sentiment_with_prices(daily, price)

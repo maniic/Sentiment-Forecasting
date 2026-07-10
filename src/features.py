@@ -81,6 +81,18 @@ def _extract_close_prices(ohlcv: pd.DataFrame, tickers: list[str]) -> pd.DataFra
         raise ValueError("Could not locate 'Adj Close' in yfinance response")
 
 
+def load_close_prices(tickers: Iterable[str], lookback_days: int = 180) -> pd.DataFrame:
+    """
+    Download adjusted close prices: DatetimeIndex rows, one column per ticker.
+
+    Public entry point so callers (the app, notebooks) can fetch prices once
+    and reuse them for both feature computation and visualization.
+    """
+    tickers = _as_list(tickers)
+    ohlcv = _download_prices(tickers, lookback_days)
+    return _extract_close_prices(ohlcv, tickers)
+
+
 def _compute_single_ticker_features(px: pd.Series, ticker: str) -> pd.DataFrame:
     """
     Compute price features for a single ticker.
@@ -225,6 +237,42 @@ def compute_price_features(
         logger.warning("Failed to download prices: %s", e)
         return _empty_price_features()
 
+    return compute_price_features_from_closes(
+        close,
+        add_topology=add_topology,
+        topo_window=topo_window,
+        topo_embed_dim=topo_embed_dim,
+    )
+
+
+def compute_price_features_from_closes(
+    close: pd.DataFrame,
+    add_topology: bool = True,
+    topo_window: int = 60,
+    topo_embed_dim: int = 4,
+) -> pd.DataFrame:
+    """
+    Compute per (ticker, date) features from an already-loaded close-price frame.
+
+    This is the network-free core of :func:`compute_price_features`; it also
+    powers the offline demo mode, which supplies synthetic prices.
+
+    Parameters
+    ----------
+    close : pd.DataFrame
+        Close prices with a DatetimeIndex and one column per ticker.
+    add_topology : bool
+        Whether to compute TDA features
+    topo_window : int
+        Window size for topology computation
+    topo_embed_dim : int
+        Embedding dimension for delay embedding
+
+    Returns
+    -------
+    pd.DataFrame
+        Feature DataFrame with one row per (ticker, date)
+    """
     records = []
     topo_frames = []
 

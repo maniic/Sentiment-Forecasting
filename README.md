@@ -1,143 +1,164 @@
-# Sentiment Forecasting
+# 📰📈 Sentiment Forecasting
 
-A sophisticated stock sentiment forecasting system that combines **FinBERT NLP**, **Topological Data Analysis (TDA)**, and **ML-driven backtesting** to generate trading signals.
+[![CI](https://github.com/maniic/Sentiment-Forecasting/actions/workflows/ci.yml/badge.svg)](https://github.com/maniic/Sentiment-Forecasting/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Streamlit](https://img.shields.io/badge/UI-Streamlit-ff4b4b)
 
-## Overview
+**AI reads the day's financial headlines, topology measures the market's "shape", and a
+machine-learning model turns both into trading signals — backtested against buy & hold
+in an interactive web app.**
 
-This is a stock prediction project that combines three cutting-edge techniques:
+![App overview](docs/screenshots/app_overview.png)
 
-### 1. FinBERT Financial Sentiment Analysis
-- State-of-the-art transformer model fine-tuned on financial text
-- Classifies headlines as POSITIVE, NEGATIVE, or NEUTRAL with calibrated probabilities
-- Outperforms generic sentiment models on financial language
+## Try it in 30 seconds
 
-### 2. Topological Data Analysis (TDA)
-- Uses **persistent homology** from algebraic topology to detect hidden market patterns
-- Transforms price series into point clouds via **delay embedding**
-- Extracts topological features (connected components, loops) that capture market regimes
-- This is a rare, advanced technique seldom seen in finance projects
+```bash
+git clone https://github.com/maniic/Sentiment-Forecasting.git
+cd Sentiment-Forecasting
+pip install -r requirements.txt
+streamlit run app.py
+```
 
-### 3. End-to-End ML Pipeline
-- Time-series aware train/test splitting (no look-ahead bias)
-- Multiple model support: Logistic Regression, XGBoost, Ensemble
-- Full backtesting with transaction costs
-- Real-time signal generation
+The app opens in **Demo mode**: a fully offline, reproducible synthetic market where the
+generated headlines genuinely predict next-day moves — so every chart has something to
+show instantly, with no API keys, no waiting, and no model downloads. Flip one radio
+button to **Live market data** to pull real headlines and real prices.
+
+## How it works (in plain English)
+
+| Step | What happens | Powered by |
+|------|--------------|------------|
+| 1. 📰 **Collect** | Pull the last few days of headlines for each ticker | Google News RSS / Yahoo Finance |
+| 2. 🧠 **Read** | A finance-tuned AI reads each headline: positive / negative / neutral | FinBERT (lexicon fallback built in) |
+| 3. 📐 **Shape** | Recent returns become a 3D point cloud; its *shape* is measured | Topological data analysis |
+| 4. 🎲 **Predict** | Sentiment + momentum + shape → probability each ticker rises tomorrow | Logistic Regression / XGBoost / rule blend |
+| 5. 📊 **Test** | Simulate trading that signal historically, minus costs, vs. buy & hold | Backtester |
+
+### The sentiment view
+
+Every headline is scored and aggregated per ticker per day — and you can inspect the
+core hypothesis directly: does today's news tone predict tomorrow's move?
+
+![Sentiment tab](docs/screenshots/app_sentiment.png)
+
+### The topology view (the unusual part)
+
+Most finance projects stop at returns and volatility. This one also applies
+**persistent homology** — a technique from algebraic topology. A sliding window of
+daily returns is *delay-embedded* into a point cloud, and the cloud's structure
+(connected components H0, loops H1, and how long they persist) becomes a set of
+`topo_*` features describing the market's regime: calm markets make tight simple
+clouds, turbulent ones make stretched clouds with loops.
+
+![Topology explorer](docs/screenshots/app_topology.png)
+
+### Today's picks
+
+The end product: tickers whose probability of rising tomorrow clears your threshold,
+with the evidence (momentum, sentiment, headline count) beside each one.
+
+![Today's picks](docs/screenshots/app_picks.png)
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         DATA SOURCES                                │
-├──────────────────┬──────────────────┬───────────────────────────────┤
-│   Google News    │    yfinance      │       yfinance OHLCV          │
-│   Headlines      │    Headlines     │       Price Data              │
-└────────┬─────────┴────────┬─────────┴─────────────┬─────────────────┘
-         │                  │                       │
-         ▼                  ▼                       ▼
-┌─────────────────────────────────┐    ┌──────────────────────────────┐
-│         FinBERT NLP             │    │    Topological Features      │
-│  ┌───────────────────────────┐  │    │  ┌────────────────────────┐  │
-│  │ Sentiment Classification  │  │    │  │  Delay Embedding       │  │
-│  │ POSITIVE / NEGATIVE /     │  │    │  │  Vietoris-Rips Complex │  │
-│  │ NEUTRAL with confidence   │  │    │  │  Persistence Diagrams  │  │
-│  └───────────────────────────┘  │    │  └────────────────────────┘  │
-└────────────────┬────────────────┘    └─────────────┬────────────────┘
-                 │                                   │
-                 ▼                                   ▼
+├────────────────┬────────────────┬───────────────────────────────────┤
+│  Google News   │   yfinance     │   Demo generator (offline,        │
+│  RSS headlines │   news+prices  │   seeded synthetic market)        │
+└───────┬────────┴───────┬────────┴───────────────┬───────────────────┘
+        ▼                ▼                        ▼
+┌─────────────────────────────────┐   ┌──────────────────────────────┐
+│        SENTIMENT ENGINE         │   │     TOPOLOGICAL FEATURES     │
+│  FinBERT transformer            │   │  Delay embedding             │
+│  ↓ graceful fallback ↓          │   │  Vietoris-Rips persistence   │
+│  Financial lexicon scorer       │   │  H0/H1 summaries + entropy   │
+└───────────────┬─────────────────┘   └──────────────┬───────────────┘
+                ▼                                    ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                      FEATURE ENGINEERING                            │
-│  ┌─────────────┐  ┌──────────────┐  ┌────────────┐  ┌────────────┐  │
-│  │ sent_mean   │  │ ret_1/5/10   │  │ topo_d0_*  │  │ topo_d1_*  │  │
-│  │ sent_std    │  │ vol_20       │  │ topo_entropy│ │            │  │
-│  └─────────────┘  └──────────────┘  └────────────┘  └────────────┘  │
-└────────────────────────────┬────────────────────────────────────────┘
-                             │
-                             ▼
+│   FEATURE ENGINEERING  (returns, volatility, sentiment, topology)   │
+└────────────────────────────────┬────────────────────────────────────┘
+                                 ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        ML MODELS                                    │
-│  ┌─────────────┐  ┌──────────────┐  ┌────────────────────────────┐  │
-│  │  Logistic   │  │   XGBoost    │  │   Ensemble (Voting)        │  │
-│  │  Regression │  │              │  │   LR + GB + XGB            │  │
-│  └─────────────┘  └──────────────┘  └────────────────────────────┘  │
-└────────────────────────────┬────────────────────────────────────────┘
-                             │
-                             ▼
+│   MODELS   rule blend │ Logistic Regression │ XGBoost │ Ensemble    │
+└────────────────────────────────┬────────────────────────────────────┘
+                                 ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                      BACKTESTING                                    │
-│  • Time-series cross-validation    • Transaction cost modeling     │
-│  • Sharpe ratio optimization       • Maximum drawdown tracking     │
-│  • Signal threshold tuning         • Today's live signals          │
+│   BACKTEST   equal-weight longs · costs · drawdown · vs buy & hold  │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Run the Pipeline
+## Engineering highlights
+
+- **Runs anywhere.** Heavy dependencies load lazily: no torch? The sentiment engine
+  falls back to a transparent financial lexicon. No `giotto-tda`? Topology falls back
+  to statistical proxies. No internet? Demo mode simulates the whole market. The app
+  always reports which engine actually ran.
+- **No look-ahead bias.** Signals formed on day *t* are evaluated on day *t+1* returns;
+  train/test splits are strictly chronological.
+- **Honest backtesting.** Trading costs, drawdown tracking, win rate, and an
+  equal-weight buy-and-hold benchmark on every run.
+- **Tested + CI.** 62 pytest tests covering schemas, features, news parsing, and models
+  run on every push via GitHub Actions, plus an offline end-to-end pipeline smoke test.
+- **Typed, modular `src/` layout** with centralized config, column-name contracts
+  (`schemas.py`), and reusable UI components.
+
+## Other ways to run it
 
 ```bash
-# CLI Pipeline - generates signals and backtests
+# CLI pipeline — prints today's picks and saves equity curve + metrics to output/
 python run_pipeline.py --tickers SPY QQQ AAPL
+python run_pipeline.py --demo            # same, but fully offline
 
-# Launch the Streamlit GUI
-streamlit run app.py
-```
-
-### Explore the Demo Notebook
-
-```bash
-# Launch Jupyter
+# Explore the notebook walkthrough
 jupyter notebook notebooks/sentiment_forecasting_demo.ipynb
+
+# Run the tests
+pytest tests/ -v
 ```
-
-## Features
-
-### Data Sources
-- **Google News RSS**: Real-time financial headlines
-- **yfinance**: Stock prices and alternative news source
-- **Automatic fallback**: Switches sources if one fails
-
-### Sentiment Analysis
-- **FinBERT**: Domain-specific financial sentiment model
-- **Thread-safe singleton**: Efficient model loading
-- **Batch processing**: Memory-efficient inference
-
-### Topological Features
-- **Delay embedding**: Time series → point cloud transformation
-- **Persistent homology**: H0 (components) and H1 (loops) features
-- **Fallback statistics**: Works even without giotto-tda installed
-
-### ML Models
-- **Quick Prob**: Rule-based sentiment + momentum blend
-- **Logistic Regression**: Balanced, regularized classifier
-- **XGBoost**: Gradient boosting with auto-fallback
-- **Ensemble**: Voting classifier combining all models
-
-### Backtesting
-- **Equal-weight strategy**: Long signals above threshold
-- **Momentum filter**: Optional trend confirmation
-- **Transaction costs**: Realistic cost modeling
-- **Metrics**: Sharpe ratio, max drawdown, trade count
 
 ## Configuration
 
-All configuration is centralized in `src/config.py`:
+All knobs live in `src/config.py`:
 
 ```python
 from src.config import (
     TICKERS,               # Default ticker universe
     PREDICTION_THRESHOLD,  # Signal threshold (default: 0.60)
     DEFAULT_LOOKBACK_DAYS, # News lookback (default: 5)
-    TopoConfig,           # TDA parameters
-    ModelConfig,          # ML model settings
-    StrategyConfig,       # Backtest parameters
+    TopoConfig,            # TDA parameters
+    ModelConfig,           # ML model settings
+    StrategyConfig,        # Backtest parameters
 )
 ```
 
-## Dependencies
+## Project structure
 
-Core:
-- `pandas`, `numpy` - Data manipulation
-- `transformers`, `torch` - FinBERT model
-- `scikit-learn`, `xgboost` - ML models
-- `giotto-tda` - Topological Data Analysis
-- `yfinance`, `feedparser` - Data fetching
-- `streamlit` - Web interface
-- `matplotlib`, `plotly` - Visualization
+```
+├── app.py                  # Streamlit app (demo + live modes)
+├── run_pipeline.py         # CLI pipeline
+├── src/
+│   ├── news.py             # Headline fetching (Google RSS, yfinance old+new schemas)
+│   ├── sentiment.py        # FinBERT + lexicon fallback engines
+│   ├── tda.py              # Persistent homology features (+ fallback)
+│   ├── features.py         # Price/sentiment/topology feature engineering
+│   ├── ml.py               # Models: rule blend, logistic, XGBoost, ensemble
+│   ├── backtest.py         # Signals, backtester, benchmark, today's picks
+│   ├── demo.py             # Seeded synthetic market generator
+│   ├── config.py           # Central configuration
+│   ├── schemas.py          # Column contracts shared across the pipeline
+│   └── ui/                 # Streamlit components, Plotly charts, session state
+├── tests/                  # 62 pytest tests
+└── .github/workflows/      # CI: tests + offline pipeline smoke test
+```
+
+## Disclaimer
+
+This is an educational project. Backtests on short windows are noisy, the demo market
+is synthetic by design, and nothing here is investment advice.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
