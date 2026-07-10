@@ -139,11 +139,13 @@ way: [Fly.io](https://fly.io), [Railway](https://railway.app), or
 [Hugging Face Spaces](https://huggingface.co/spaces) (Docker SDK) — all read the included
 `Dockerfile`.
 
-The deploy path intentionally **skips FinBERT** (`requirements-deploy.txt`, no
-`torch`/`transformers`): free-tier containers don't reliably have the RAM for it, and the
-app already falls back to its lexicon sentiment engine — see
-[Engineering highlights](#engineering-highlights). Run `requirements.txt` (the full set)
-locally if you want FinBERT and live data sources.
+Two hosted flavors — see **[DEPLOY.md](DEPLOY.md)** for step-by-step instructions:
+
+- **Render** (`render.yaml` + lite `Dockerfile`): fits the free 512MB tier by skipping
+  `torch`/`transformers`; the app falls back to its lexicon sentiment engine.
+- **Hugging Face Spaces** (`Dockerfile.hf`): the free CPU tier has 16GB RAM, so this
+  image ships the **full FinBERT transformer**, pre-downloaded at build time — the
+  right choice when the link needs to showcase everything.
 
 ```bash
 # Render — connects render.yaml automatically, or manually:
