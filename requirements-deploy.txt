@@ -1,0 +1,14 @@
+# Minimal dependency set for hosting the live demo (Render / Fly / Railway /
+# HF Spaces). Deliberately excludes torch + transformers: on a free-tier
+# container (~512MB RAM) they don't reliably fit, and the app already has a
+# graceful lexicon fallback for sentiment scoring — see src/sentiment.py.
+# For the full local experience (including FinBERT), use requirements.txt.
+fastapi
+uvicorn[standard]
+pandas
+numpy
+scikit-learn
+yfinance
+feedparser
+xgboost
+joblib

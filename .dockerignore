@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.git/
+.github/
+tests/
+notebooks/
+models/
+output/
+docs/
+*.md
+requirements.txt
+frontend/vendor/*.map

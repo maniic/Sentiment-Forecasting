@@ -210,6 +210,12 @@ app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 
 
 if __name__ == "__main__":
+    import os
+
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    # Cloud platforms (Render, Fly, Railway, HF Spaces) inject $PORT and expect
+    # the process to bind 0.0.0.0. Locally this falls back to 127.0.0.1:8000.
+    port = int(os.environ.get("PORT", 8000))
+    host = "0.0.0.0" if "PORT" in os.environ else "127.0.0.1"
+    uvicorn.run(app, host=host, port=port)
